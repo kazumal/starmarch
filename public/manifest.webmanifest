@@ -1,0 +1,17 @@
+{
+  "name": "Orbit Siege",
+  "short_name": "Orbit Siege",
+  "description": "リアルタイムで銀河を奪い合う宇宙戦略ゲーム",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#070b22",
+  "theme_color": "#070b22",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

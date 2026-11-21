@@ -1,0 +1,1324 @@
+<title>Orbit Siege</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;700;900&display=swap">
+<style>
+/* Layout: realm status strip on top; the galaxy map fills the stage; a command sidebar (right on desktop, below on phones) shows the realm or the focused planet plus war news */
+:root{
+  --space:#070b22; --deep:#0f1640; --panel:rgba(13,19,52,.95); --line:#27326b; --ink:#e7ecff; --mute:#8d97c7;
+  --player:#7fd6ff; --gold:#ffe08a; --dust:#ff9de6; --heal:#7ff0b0; --warn:#ff5c8a;
+  --display:'Chakra Petch','Zen Kaku Gothic New',system-ui,sans-serif;
+  --body:'Zen Kaku Gothic New','Hiragino Sans','Yu Gothic',system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--space);color:var(--ink);font-family:var(--body);overflow:hidden;-webkit-user-select:none;user-select:none}
+#app{height:100%;display:flex;flex-direction:column;gap:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;box-sizing:border-box}
+.hud{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px}
+.stat{display:flex;flex-direction:column;line-height:1.1;min-width:0}
+.stat small{font-size:10px;letter-spacing:.14em;color:var(--mute);font-family:var(--display)}
+.stat b{font-family:var(--display);font-size:18px;font-variant-numeric:tabular-nums;font-weight:700}
+.stat b em{font-style:normal;font-size:11px;color:var(--heal);margin-left:4px}
+.stat b.over{color:var(--warn)}
+#sDay b{color:var(--player)} #sCr b{color:var(--gold)}
+.spacer{flex:1}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button,.btn{font-family:var(--display);font-size:13px;font-weight:700;color:var(--mute);background:transparent;border:0;padding:7px 10px;cursor:pointer;letter-spacing:.04em;position:relative}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--player);color:var(--space)}
+#speed button[data-s="0"][aria-pressed="true"]{background:var(--gold)}
+.btn{border:1px solid var(--line);border-radius:6px}
+.btn:hover,.seg button:hover{color:var(--ink)}
+.btn .dot{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;border-radius:8px;background:var(--gold);color:#0b102e;font-size:10px;display:grid;place-items:center;padding:0 3px;box-sizing:border-box}
+button:focus-visible,select:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.main{flex:1;min-height:0;display:flex;gap:8px}
+.stage{position:relative;flex:1;min-width:0;min-height:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--deep)}
+canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.pausetag{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-family:var(--display);font-size:12px;letter-spacing:.2em;color:#0b102e;background:var(--gold);padding:4px 12px;border-radius:999px;pointer-events:none;white-space:nowrap}
+.coal{position:absolute;top:10px;right:10px;font-size:12px;font-weight:900;color:#fff;background:var(--warn);padding:4px 10px;border-radius:6px;pointer-events:none}
+aside{width:310px;flex:0 0 auto;display:flex;flex-direction:column;gap:8px;min-height:0;overflow-y:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:12px;box-sizing:border-box}
+.ratio{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--mute)}
+.info{display:flex;flex-direction:column;gap:10px}
+.ph{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.ph h3{margin:0;font-size:19px;font-weight:900}
+.chip{font-size:11px;border-radius:999px;padding:2px 8px;border:1px solid currentColor;font-family:var(--display);letter-spacing:.06em;white-space:nowrap}
+.kv{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.kv div{background:var(--deep);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:1px}
+.kv small{font-size:10px;color:var(--mute);letter-spacing:.08em}
+.kv b{font-family:var(--display);font-size:15px;font-variant-numeric:tabular-nums}
+.lv{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mute);flex-wrap:wrap}
+.lv i{width:12px;height:6px;border-radius:2px;background:var(--line)}
+.lv i.on{background:var(--player)}
+.trait{background:color-mix(in srgb,var(--gold) 12%,var(--deep));border:1px solid color-mix(in srgb,var(--gold) 45%,transparent);border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.5}
+.trait b{color:var(--gold)}
+.builds{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.bb{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;background:var(--deep);border:1px solid var(--line);border-radius:8px;padding:7px 8px;color:var(--ink);cursor:pointer;font-family:var(--body);font-size:13px;font-weight:700}
+.bb small{font-family:var(--display);font-size:11px;color:var(--gold);font-weight:500}
+.bb:disabled{opacity:.38;cursor:default}
+.bb:not(:disabled):hover{border-color:var(--player)}
+.prog{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.prog i{display:block;height:100%;background:var(--gold)}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--deep);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--ink);cursor:pointer;font-family:var(--body);font-weight:700;text-align:left;width:100%;box-sizing:border-box}
+.toggle small{font-weight:400;color:var(--mute);display:block;font-size:11px}
+.toggle span.sw{flex:0 0 auto;width:34px;height:18px;border-radius:9px;background:var(--line);position:relative}
+.toggle span.sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--mute);transition:left .15s}
+.toggle:disabled{opacity:.4;cursor:default}
+.toggle.on span.sw{background:var(--player)}.toggle.on span.sw::after{left:18px;background:#0b102e}
+.off-list{display:flex;flex-direction:column;gap:6px}
+.off{background:var(--deep);border:1px solid var(--line);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:5px}
+.off .top{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.badge{width:26px;height:26px;border-radius:6px;display:grid;place-items:center;font-weight:900;font-size:13px;color:#0b102e;flex:0 0 auto}
+.off .nm{font-weight:900;font-size:13px;flex:1;min-width:0}
+.off .st{font-family:var(--display);font-size:11px;color:var(--mute);display:flex;gap:8px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.off .st b{color:var(--ink);font-weight:500}
+.off select{font-family:var(--body);font-size:12px;background:#0b102e;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px;max-width:100%}
+.hire{font-family:var(--body);font-size:12px;font-weight:700;background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:6px;padding:5px 10px;cursor:pointer}
+.hire:disabled{opacity:.4;cursor:default}
+.sec{font-family:var(--display);font-size:11px;letter-spacing:.18em;color:var(--mute);margin:0}
+.facs{display:flex;flex-direction:column;gap:5px}
+.fac{display:grid;grid-template-columns:10px 1fr auto auto;gap:8px;align-items:center;font-size:12px}
+.fac i{width:10px;height:10px;border-radius:50%}
+.fac span{font-family:var(--display);color:var(--mute);font-variant-numeric:tabular-nums}
+.roles{display:flex;flex-direction:column;gap:4px;font-size:12px}
+.roles div{display:flex;justify-content:space-between;gap:8px;background:var(--deep);border-radius:6px;padding:5px 8px}
+.roles span{color:var(--mute)}
+.pols{display:flex;flex-direction:column;gap:8px}
+.pol{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;font-size:12px}
+.pol>span{font-weight:700}.pol .seg{justify-self:end}.pol .seg button{padding:5px 8px;font-size:12px;font-family:var(--body)}
+.pol small{grid-column:1/-1;color:var(--mute);font-size:11px;line-height:1.4}
+.alert{background:color-mix(in srgb,var(--warn) 16%,var(--deep));border:1px solid var(--warn);border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.55}
+.alert b{color:var(--warn);display:block;font-size:13px}.alert .go{margin-top:4px}
+.opb{display:flex;flex-direction:column;gap:2px;font-size:12px;background:#0b102e;border-radius:6px;padding:6px 8px}
+.opb div{display:flex;justify-content:space-between;gap:8px}.opb span{color:var(--mute)}.opb b{font-family:var(--display);font-weight:500}
+.opb .sub{display:block;color:var(--mute);font-size:11px;line-height:1.45;margin-bottom:3px}
+.queue{display:flex;flex-direction:column;gap:4px}
+.qi{display:flex;align-items:center;gap:8px;background:var(--deep);border-radius:6px;padding:5px 8px;font-size:12px}
+.qi span{flex:1}.qi em{font-style:normal;color:var(--gold);font-size:11px}.qi .prog{flex:1}
+.qi.now span{flex:0 0 auto;font-weight:700}
+.go{font-family:var(--body);font-size:12px;font-weight:700;background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:4px 9px;cursor:pointer}
+.go:hover{border-color:var(--player)}
+.gauge{height:8px;border-radius:4px;background:var(--line);overflow:hidden;position:relative}
+.gauge i{position:absolute;inset:0 auto 0 0;background:var(--heal)}
+.gauge.over i{background:var(--warn)}
+.news{display:flex;flex-direction:column;gap:4px;font-size:12px;line-height:1.45;margin-top:auto;border-top:1px solid var(--line);padding-top:8px}
+.news b{font-family:var(--display);font-weight:500;color:var(--mute);opacity:.6;margin-right:6px}
+.hint{font-size:13px;color:var(--mute);line-height:1.65;margin:0}
+.hint b{color:var(--ink)}
+[hidden]{display:none!important}
+.overlay{position:absolute;inset:0;display:grid;place-items:center;background:rgba(5,8,26,.78);padding:16px;overflow:auto;z-index:5}
+.panel{width:min(680px,100%);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:14px;box-sizing:border-box}
+.panel h1{font-family:var(--display);font-size:clamp(34px,8vw,58px);line-height:1;margin:0;letter-spacing:.06em;background:linear-gradient(90deg,var(--player),#b38cff 55%,var(--warn));-webkit-background-clip:text;background-clip:text;color:transparent}
+.panel h2{font-family:var(--display);font-size:24px;margin:0;letter-spacing:.04em;text-wrap:balance}
+.kicker{font-family:var(--display);font-size:12px;letter-spacing:.24em;color:var(--mute);margin:0}
+.panel p{margin:0;line-height:1.7}
+.muted{color:var(--mute);font-size:14px}
+.rules{margin:0;padding-left:1.2em;line-height:1.8}
+.rules b{color:var(--player)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.cta{font-family:var(--display);font-size:17px;font-weight:700;letter-spacing:.1em;background:var(--player);color:var(--space);border:0;border-radius:8px;padding:13px 20px;cursor:pointer;flex:1}
+.cta.alt{background:transparent;color:var(--dust);border:1px solid var(--dust)}
+.cta.ghost{background:transparent;color:var(--mute);border:1px solid var(--line)}
+.cta:disabled{opacity:.4;cursor:default}
+.tally{display:grid;grid-template-columns:1fr auto;gap:4px 16px;font-variant-numeric:tabular-nums;font-family:var(--display);margin:0}
+.tally dt{color:var(--mute)} .tally dd{margin:0;text-align:right}
+.tally .total{color:var(--gold);font-size:20px} .tally .dust{color:var(--dust);font-size:18px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.item{border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px;background:var(--deep)}
+.item strong{font-family:var(--display);font-size:15px}
+.item span{font-size:13px;color:var(--mute);line-height:1.5}
+.pips{display:flex;gap:4px}.pips i{width:16px;height:5px;border-radius:2px;background:var(--line)}.pips i.on{background:var(--dust)}.pips.t i.on{background:var(--gold)}
+.buy{font-family:var(--display);font-weight:700;font-size:13px;background:transparent;color:var(--dust);border:1px solid var(--dust);border-radius:6px;padding:7px 10px;cursor:pointer;align-self:flex-start}
+.buy.t{color:var(--gold);border-color:var(--gold)}
+.buy:disabled{opacity:.35;cursor:default}
+.dip{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:var(--deep);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.dip b{font-size:15px}.dip small{display:block;color:var(--mute);font-size:12px;margin-top:2px}
+@media (max-width:860px){
+  .main{flex-direction:column}
+  aside{width:auto;max-height:38%;flex:0 0 auto}
+  .stage{flex:1 1 auto;min-height:200px}
+  .stat b{font-size:15px}.hud{gap:4px 10px}.seg button,.btn{padding:6px 7px;font-size:12px}.panel{padding:16px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div id="app">
+  <div class="hud">
+    <div class="stat" id="sDay"><small>銀河-宇宙暦</small><b id="hDay">-</b></div>
+    <div class="stat" id="sCr"><small>資金</small><b id="hCr">-</b></div>
+    <div class="stat"><small>統治 惑星/上限</small><b id="hPl">-</b></div>
+    <div class="stat"><small>総艦数/維持上限</small><b id="hShips">-</b></div>
+    <div class="stat"><small>SCORE</small><b id="hScore">0</b></div>
+    <div class="spacer"></div>
+    <div class="seg" id="speed" role="group" aria-label="時間の速さ">
+      <button data-s="0" aria-pressed="false" title="一時停止 (Space)">II</button>
+      <button data-s="1" aria-pressed="true">×1</button>
+      <button data-s="2" aria-pressed="false">×2</button>
+      <button data-s="3" aria-pressed="false">×3</button>
+    </div>
+    <button class="btn" id="bTech">技術</button>
+    <button class="btn" id="bHome" title="首都へ (H)">⌂</button>
+    <button class="btn" id="bMute">♪</button>
+    <button class="btn" id="bMenu">≡</button>
+  </div>
+  <div class="main">
+    <div class="stage">
+      <canvas id="cv"></canvas>
+      <div class="pausetag" id="pauseTag" hidden>PAUSED · 停止中も命令できます</div>
+      <div class="coal" id="coalTag" hidden>対自軍包囲網</div>
+      <div class="overlay" id="ov"></div>
+    </div>
+    <aside id="side">
+      <div class="ratio"><span>出撃させる割合</span>
+        <div class="seg" id="ratio" role="group" aria-label="出撃させる割合">
+          <button data-r="0.25" aria-pressed="false">25%</button><button data-r="0.5" aria-pressed="true">50%</button><button data-r="0.75" aria-pressed="false">75%</button><button data-r="1" aria-pressed="false">全</button>
+        </div></div>
+      <div class="info" id="info"></div>
+      <div class="news" id="news"></div>
+    </aside>
+  </div>
+</div>
+
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const cv=$('cv'),ctx=cv.getContext('2d'),ov=$('ov');
+const FACS={
+  p:{name:'自軍',col:'#7fd6ff'},
+  raid:{name:'レイダー',col:'#ff5c8a',aggr:1.3,dev:.5},
+  hive:{name:'ハイヴ',col:'#b38cff',aggr:1.0,dev:.9},
+  bastion:{name:'バスティオン',col:'#ffb347',aggr:.75,dev:1.3},
+  verd:{name:'ヴェルド連邦',col:'#6ff0a8',aggr:.9,dev:1.1},
+  iron:{name:'鉄鎖帝国',col:'#e8dcae',aggr:1.15,dev:.8},
+  void:{name:'虚空の軍勢',col:'#3df0d8',aggr:1.5,dev:.3},
+  rebel:{name:'独立軍',col:'#ff9df0',aggr:1.0,dev:.8},
+  n:{name:'中立',col:'#6f789c'},
+};
+const AI_ORDER=['raid','hive','bastion','verd','iron'];
+const TRAITS={
+  ruins:{name:'古代遺跡',k:'遺',desc:'技術開発の費用 -15%'},
+  forge:{name:'造船資源',k:'鋼',desc:'全惑星の生産 +8%'},
+  trade:{name:'交易ハブ',k:'商',desc:'全惑星の資金収入 +15%'},
+  fortress:{name:'要塞星',k:'塞',desc:'この惑星の防御 ×1.8・最大艦数 +40'},
+  nexus:{name:'航路結節点',k:'結',desc:'全惑星の出撃射程 +8%'},
+  academy:{name:'士官学校',k:'学',desc:'統治上限 +2・維持上限 +20'},
+};
+const BUILD={
+  ind:{name:'産業開発',desc:'生産・収入・最大艦数アップ',cost:p=>50+40*p.ind,time:18,can:p=>p.ind<5},
+  def:{name:'防衛強化',desc:'防御・最大艦数アップ',cost:p=>45+35*p.def,time:14,can:p=>p.def<4},
+  turret:{name:'砲台',desc:'近づく敵艦隊を撃つ',cost:p=>p.owner==='p'&&G.doc==='fort'?45:90,time:16,can:p=>!p.turret},
+  relay:{name:'中継塔',desc:'射程 ×1.5・発進艦隊 +25%速',cost:()=>70,time:14,can:p=>!p.relay},
+  depot:{name:'補給基地',desc:'首都と同じく補給の起点になる',cost:()=>80,time:16,can:p=>!p.depot},
+  gov:{name:'総督府',desc:'統治上限 +2。建てるほど高くなる',cost:p=>90+45*G.planets.filter(q=>q.owner===p.owner&&q.gov).length,time:20,can:p=>!p.gov},
+};
+const TECH=[
+  {id:'gov',name:'統治機構',desc:'統治上限 +3',cost:[140,300,520,800]},
+  {id:'prod',name:'自動工廠',desc:'全惑星の生産 +12%',cost:[150,300,520,800]},
+  {id:'econ',name:'交易網',desc:'資金収入 +15%',cost:[120,260,450,700]},
+  {id:'atk',name:'兵装',desc:'艦の攻撃力 +10%',cost:[160,320,560,850]},
+  {id:'def',name:'装甲',desc:'惑星の防御 +10%',cost:[140,300,520,800]},
+  {id:'speed',name:'推進機関',desc:'艦隊速度 +12%',cost:[120,260,450]},
+  {id:'range',name:'航続距離',desc:'出撃射程 +10%',cost:[150,320,550]},
+  {id:'build',name:'建設技術',desc:'建設の時間 -15%・費用 -10%',cost:[110,240,420]},
+  {id:'logi',name:'兵站網',desc:'維持上限（維持費なしで持てる艦数）+15%',cost:[150,320,560]},
+  {id:'sensor',brk:1,name:'深宇宙センサー',desc:'視界が自軍惑星から2つ先まで広がる。敵の集結や首都を早く見つけられる',cost:[380]},
+  {id:'pincer',brk:1,name:'包囲殲滅ドクトリン',desc:'挟撃（別々の惑星から4秒以内に同じ目標へ着弾）の攻撃ボーナスが ×1.35 → ×1.8',cost:[360]},
+  {id:'stealth',brk:1,name:'遮蔽装置',desc:'自軍艦隊は敵の砲台に撃たれず、航路上で敵艦隊とすれ違っても交戦しない',cost:[420]},
+  {id:'shield',brk:1,name:'惑星シールド',desc:'自軍惑星は攻撃を受けるたび、最初の12艦分のダメージを無効化する。小部隊の波状攻撃に強い',cost:[400]},
+  {id:'cannon',brk:1,name:'軌道砲',desc:'砲台が、射程内に艦隊がいないとき隣の敵惑星を砲撃して艦を削り続ける',cost:[440]},
+  {id:'propa',brk:1,name:'宣伝工作',desc:'自軍と隣り合う中立惑星や、補給途絶した敵惑星が、戦わずに寝返ることがある',cost:[340]},
+];
+const LAB=[
+  {id:'credits',name:'初期資金',desc:'戦役開始時の資金',eff:l=>`+${l*60}`,cost:[12,25,45]},
+  {id:'prod',name:'基礎生産',desc:'自軍の生産速度',eff:l=>`+${l*4}%`,cost:[15,30,50,75,110]},
+  {id:'logi',name:'兵站学',desc:'維持上限',eff:l=>`+${l*8}%`,cost:[20,45,80]},
+  {id:'ops',name:'作戦参謀',desc:'同時に立てられる作戦の数',eff:l=>`${3+l}つ`,cost:[40,90]},
+  {id:'gov',name:'統治学',desc:'統治上限',eff:l=>`+${l}`,cost:[25,55,95]},
+  {id:'tech',name:'技術継承',desc:'開始時に技術をランダムにLv1',eff:l=>`${l}つ`,cost:[40,90]},
+  {id:'dust',name:'回収効率',desc:'戦役後にもらえる星屑',eff:l=>`+${l*10}%`,cost:[25,60,110]},
+];
+const PNAMES=['アルデラ','ベガ','カノープ','デネブ','エルナト','フォマル','ガクルクス','ハダル','イザール','ジュバ','ケイド','ルクバト','ミラク','ナオス','オリオラ','ポラリ','クォーラ','リゲル','サイフ','トゥバン','ウヌク','ヴェラ','ワサト','ザニア','アクラ','ブラン','セレス','ディオネ','エオス','ファロス','ゲミナ','ヘリオ','イオタ','ユノ','カリス','ライラ','メロペ','ネレイ','オベロン','ペルセ','レア','シリカ','テティス','ウラヌ','ゼノ','アトラ','ボレア','キロン','ダイモス','エンケ','フレイ','ガイア','ヒドラ','イカロ','ヤヌス','ミモザ','スピカ','アンタレ'];
+const RULES={
+  none:{name:'標準',desc:'特別な環境はない'},
+  rich:{name:'豊穣の銀河',desc:'全勢力の生産 +30%'},
+  gold:{name:'黄金の銀河',desc:'全勢力の資金収入 +30%'},
+  frontier:{name:'辺境の銀河',desc:'全勢力の統治上限 +3'},
+  nebula:{name:'星雲の銀河',desc:'濃い星雲で全艦隊の速度 -25%。援軍が間に合いにくい'},
+  fort:{name:'要塞の銀河',desc:'全惑星の防衛 +1、中立惑星の守備隊 1.4倍'},
+  chaos:{name:'動乱の銀河',desc:'銀河の出来事が2倍の頻度で起きる'},
+  war:{name:'戦乱の銀河',desc:'敵勢力の大攻勢が4割早く来る'},
+};
+const DOCS={
+  none:{name:'均衡',desc:'特に偏りのない標準の国家'},
+  blitz:{name:'電撃戦',desc:'艦隊速度 +25%・作戦枠 +1／統治上限 -2'},
+  fort:{name:'要塞主義',desc:'惑星の防御 +30%・砲台が半額／生産 -10%'},
+  trade:{name:'商業国家',desc:'資金収入 +30%・生産の資金転換 1.5倍／維持上限 -15%'},
+  expand:{name:'拡張主義',desc:'統治上限 +4／艦の攻撃力 -10%'},
+  mass:{name:'物量主義',desc:'維持上限 +30%・生産 +15%／技術費 +30%'},
+};
+const TRIALS={
+  strong:{name:'強敵',h:2,desc:'敵の生産と収入 +30%'},
+  overlord:{name:'覇王の時代',h:2,desc:'第1銀河から覇王勢力が現れ、第3銀河からは2つになる'},
+  crisis:{name:'早すぎる危機',h:1,desc:'虚空の侵略が早く、1.5倍の戦力で来る'},
+  bureau:{name:'官僚の壁',h:1,desc:'統治上限 -3'},
+  logi:{name:'兵站難',h:1,desc:'維持上限 -25%'},
+  techlock:{name:'技術封鎖',h:2,desc:'技術費 +50%。次の銀河へ進むたびに基礎技術が1段階下がる'},
+  coal:{name:'猜疑の銀河',h:1,desc:'包囲網が自軍3割の時点で結成される'},
+  clock:{name:'時限戦役',h:2,desc:'各銀河を900秒以内に統一しないと敗北'},
+};
+const ACH=[
+  {id:'g2',name:'初陣',desc:'第2銀河に到達',r:10,ok:()=>G.g>=2},
+  {id:'g5',name:'遠征軍',desc:'第5銀河に到達',r:30,ok:()=>G.g>=5},
+  {id:'g8',name:'果てなき征途',desc:'第8銀河に到達',r:60,ok:()=>G.g>=8},
+  {id:'g12',name:'銀河の伝説',desc:'第12銀河に到達',r:120,ok:()=>G.g>=12},
+  {id:'fast',name:'電光石火',desc:'どこかの銀河を宇宙暦300までに統一',r:25,ok:c=>c&&G.t<=300},
+  {id:'heg',name:'覇者',desc:'覇権で銀河を統一',r:20,ok:c=>c==='heg'},
+  {id:'void',name:'救世主',desc:'虚空の軍勢を撃退',r:20,ok:()=>G.stats.voidDown},
+  {id:'caps',name:'首都狩り',desc:'1つの戦役で首都を10攻略',r:25,ok:()=>G.stats.capitals>=10},
+  {id:'dirs',name:'忠実なる将',desc:'1つの戦役で指令を15回達成',r:25,ok:()=>(G.stats.dirs||0)>=15},
+  {id:'lord',name:'覇王殺し',desc:'覇王勢力を滅ぼす',r:30,ok:()=>G.stats.lordDown},
+  {id:'notech',name:'素手の征服',desc:'技術を開発せずに第3銀河に到達',r:40,ok:()=>G.g>=3&&!G.stats.tb},
+  {id:'h5',name:'試練の道',desc:'試練の合計5以上で第3銀河に到達',r:40,ok:()=>G.g>=3&&heat()>=5},
+  {id:'h10',name:'極限',desc:'試練の合計10以上で第3銀河に到達',r:80,ok:()=>G.g>=3&&heat()>=10},
+  {id:'h14',name:'不可能への挑戦',desc:'全ての試練を課して第2銀河に到達',r:150,ok:()=>G.g>=2&&heat()>=Object.values(TRIALS).reduce((a,t)=>a+t.h,0)},
+];
+const heat=()=>[...(G.trials||[])].reduce((a,k)=>a+TRIALS[k].h,0),hmul=()=>1+.15*heat(),TR=k=>!!(G.trials&&G.trials.has(k));
+function achCheck(c){if(G.mode==='title'||G.mode==='demo')return;meta.ach=meta.ach||{};for(const a of ACH)if(!meta.ach[a.id]&&a.ok(c)){meta.ach[a.id]=1;meta.dust+=a.r;saveMeta();news(`勲章「${a.name}」を獲得（✦+${a.r}）：${a.desc}`,'#c9a8ff');G.toast={txt:'勲章 '+a.name,t:3}}}
+const GAL=['オリオン腕','ペルセウス腕','いて座腕','たて座腕','はくちょう腕','外縁域'];
+
+let W=0,H=0,dpr=1,bg=null,muted=false,actx=null;
+let best=0,meta={dust:0,lv:{}};
+try{best=+localStorage.getItem('orbitSiegeBest3')||0;const m=JSON.parse(localStorage.getItem('orbitSiegeMeta')||'null');if(m&&m.lv)meta=m}catch(e){}
+LAB.forEach(l=>meta.lv[l.id]=meta.lv[l.id]||0);
+const saveMeta=()=>{try{localStorage.setItem('orbitSiegeMeta',JSON.stringify(meta))}catch(e){}};
+const G={mode:'title',speed:1,lastSpeed:1,t:0,g:1,planets:[],fleets:[],fac:{},M:{},rel:{},parts:[],fx:[],news:[],sel:new Set(),focus:null,cam:{x:0,y:0,z:1},ratio:.5,tech:{},score:0,modalOpen:false,
+  WW:2000,WH:1250,range:330,lanes:[],recruitT:60,stats:{capt:0,destroyed:0,galaxies:0,capitals:0},toast:null,aiMul:1,coal:false,mT:0,buildT:0,lastTap:null,
+  pol:{auto:'all',hold:'pick',build:true,prod:'cap'},convR:0,hegT:0,
+  adj:[],ops:[],launches:[],opId:1,opT:0,supT:0,evT:90,pendingEv:null,crisis:false,capBonus:0,capPenT:0,depotOff:0};
+const SUP_P=[1,.6,.25],SUP_D=[1,.9,.7],SUP_A=[1,.85,.7],HEG_T=90,Q_MAX=4;
+const UPKEEP=.04,CONV=.8;
+const opsMax=()=>3+(meta.lv.ops||0)+(G.doc==='blitz'?1:0);
+const STANCE=[{name:'慎重',m:1.5},{name:'標準',m:1.2},{name:'全力',m:.95}];
+
+/* ---------- audio ---------- */
+function tone(f,d,type='sine',v=.05,slide=0){if(muted||G.mode!=='play')return;try{if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)();
+  const o=actx.createOscillator(),g=actx.createGain(),t=actx.currentTime;o.type=type;o.frequency.setValueAtTime(f,t);if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(30,f+slide),t+d);
+  g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g).connect(actx.destination);o.start(t);o.stop(t+d)}catch(e){}}
+
+/* ---------- helpers ---------- */
+const rnd=(a,b)=>a+Math.random()*(b-a),pick=a=>a[Math.floor(Math.random()*a.length)];
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+const col=o=>FACS[o].col;
+const isAI=o=>o!=='p'&&o!=='n';
+const T=id=>G.tech[id]||0;
+const traitN=(fac,k)=>G.planets.filter(p=>p.owner===fac&&p.trait===k).length;
+const NEUTRAL_M={prod:0,econ:0,atk:1,spd:1,def:1,range:1,cap:99,eff:1,tcost:1,fcap:1e9,fleet:0};
+function computeM(fac){
+  const mine=G.planets.filter(p=>p.owner===fac),pl=mine.filter(p=>!p.auton).length,isP=fac==='p',g=G.g;
+  const cap=6+2*traitN(fac,'academy')+2*mine.filter(p=>p.gov).length+(G.rule==='frontier'?3:0)+(isP?3*T('gov')+meta.lv.gov+G.capBonus+(G.govG||0)-(G.capPenT>0?2:0)+(G.doc==='blitz'?-2:G.doc==='expand'?4:0)-(TR('bureau')?3:0):Math.floor(g/2));
+  const eff=pl>cap?Math.max(.45,1-.05*(pl-cap)):1;
+  // logistics cap: how many ships the realm can sustain. Grows slowly with size, mostly with depots/capitals
+  const fcap=(60+10*mine.length+35*mine.filter(p=>p.depot).length+60*mine.filter(p=>p.capital).length+25*traitN(fac,'forge')+20*traitN(fac,'academy'))
+    *(isP?(1+.15*T('logi'))*(1+.08*(meta.lv.logi||0))*(G.doc==='trade'?.85:G.doc==='mass'?1.3:1)*(TR('logi')?.75:1):G.aiMul)+(isP?G.fcapBonus||0:0);
+  const fleet=mine.reduce((a,p)=>a+p.ships,0)+G.fleets.reduce((a,f)=>a+(f.owner===fac?f.n:0),0);
+  const up=isP?Math.max(0,fleet-fcap)*UPKEEP:0;
+  return{cap,eff,n:pl,fcap:Math.round(fcap),fleet,up,broke:!!G.fac[fac]?.broke,
+    prod:(fac==='void'?1.2:1)*(G.rule==='rich'?1.3:1)*eff*(G.fac[fac]?.broke?.5:1)*(1+.08*traitN(fac,'forge'))*(isP?(1+.04*meta.lv.prod)*(1+.12*T('prod'))*(G.doc==='fort'?.9:G.doc==='mass'?1.15:1):G.aiMul*aiX(fac)),
+    econ:(G.rule==='gold'?1.3:1)*eff*(1+.15*traitN(fac,'trade'))*(isP?(1+.15*T('econ'))*(G.doc==='trade'?1.3:1):G.aiMul*(TR('strong')?1.3:1)),
+    atk:isP?(1+.1*T('atk'))*(G.doc==='expand'?.9:1):aiGrow()*(G.fac[fac]?.lord?1.15:1),
+    spd:(G.rule==='nebula'?.75:1)*(isP?(1+.12*T('speed'))*(G.doc==='blitz'?1.25:1):1),
+    def:isP?(1+.1*T('def'))*(G.doc==='fort'?1.3:1):aiGrow()*(G.fac[fac]?.lord?1.15:1),
+    range:(1+.08*traitN(fac,'nexus'))*(isP?1+.1*T('range'):1),
+    tcost:Math.pow(.85,traitN(fac,'ruins'))*(isP?(G.doc==='mass'?1.3:1)*(TR('techlock')?1.5:1):1)};
+}
+// Enemy growth accelerates in the deep galaxies so a maxed-out realm still meets real resistance
+const aiGrow=()=>1+.05*(G.g-1)+.03*Math.max(0,G.g-4)**1.5;
+const aiX=k=>(TR('strong')?1.3:1)*(G.fac[k]?.lord?1.4:1);
+function refreshM(){for(const k in G.fac)G.M[k]=computeM(k)}
+const Mof=o=>G.M[o]||NEUTRAL_M;
+function prodOf(p){if(p.owner==='n'||p.auton)return 0;return(.3+.22*p.ind)*(p.capital?1.3:1)*SUP_P[p.sup||0]*Mof(p.owner).prod}
+function incOf(p){if(p.owner==='n')return 0;return(p.auton?.5:1)*(.5+.35*p.ind)*(p.capital?1.5:1)*Mof(p.owner).econ}
+function defOf(p){return(1+.3*p.def)*(p.trait==='fortress'?1.8:1)*(p.capital?1.2:1)*SUP_D[p.sup||0]*Mof(p.owner).def}
+const capOf=p=>40+25*p.ind+15*p.def+(p.trait==='fortress'?40:0);
+const rangeOf=p=>G.range*(p.relay?1.5:1)*Mof(p.owner).range;
+const inRange=(a,b)=>dist(a,b)<=rangeOf(a)+b.r;
+const hostile=(a,b)=>a!==b&&!(G.rel[a]?.cease>0&&b==='p')&&!(G.rel[b]?.cease>0&&a==='p');
+const isFront=p=>G.planets.some(q=>q.owner!==p.owner&&inRange(p,q));
+const techCost=t=>Math.round(t.cost[T(t.id)]*Mof('p').tcost);
+function burst(x,y,c,n,sp=1){for(let i=0;i<n&&G.parts.length<800;i++){const a=Math.random()*6.28,v=rnd(20,110)*sp;G.parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:rnd(.4,.9),max:.9,c,s:rnd(1.2,3)})}}
+function news(txt,c='#8d97c7'){if(G.mode!=='play')return;G.news.unshift({d:Math.floor(G.t),txt,c});G.news.length=Math.min(G.news.length,30);renderNews()}
+
+/* ---------- camera ---------- */
+const toWorld=(sx,sy)=>({x:(sx-W/2)/G.cam.z+G.cam.x,y:(sy-H/2)/G.cam.z+G.cam.y});
+const zMin=()=>Math.min(W/(G.WW+200),H/(G.WH+200)),zMax=1.8;
+function clampCam(){G.cam.z=clamp(G.cam.z,zMin(),zMax);G.cam.x=clamp(G.cam.x,0,G.WW);G.cam.y=clamp(G.cam.y,0,G.WH)}
+function focusHome(){const h=G.planets.find(p=>p.owner==='p'&&p.capital)||G.planets.find(p=>p.owner==='p');if(h){G.cam.x=h.x;G.cam.y=h.y}G.cam.z=clamp(Math.min(W,H)/720,zMin(),1.2);clampCam()}
+
+/* ---------- background ---------- */
+function makeBg(){if(!W)return;bg=document.createElement('canvas');bg.width=cv.width;bg.height=cv.height;const s=bg.getContext('2d');s.scale(dpr,dpr);
+  s.fillStyle='#060a1f';s.fillRect(0,0,W,H);
+  for(let i=0;i<4;i++){const x=Math.random()*W,y=Math.random()*H,r=Math.max(W,H)*rnd(.3,.6),c=pick(['#3a1d6e','#0e4a5c','#5c1d3f','#1d3f6e']);const g=s.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,c+'77');g.addColorStop(1,c+'00');s.fillStyle=g;s.fillRect(0,0,W,H)}
+  drawNebula(s);
+  const n=Math.round(W*H/1600);
+  for(let i=0;i<n;i++){s.globalAlpha=Math.random()*.6+.1;s.fillStyle=Math.random()<.15?'#ffe7c2':'#cfd8ff';const z=Math.random()<.07?1.6:.8;s.fillRect(Math.random()*W,Math.random()*H,z,z)}s.globalAlpha=1;
+  for(let i=0;i<Math.round(W*H/90000);i++){const x=Math.random()*W,y=Math.random()*H,r=rnd(4,10),c=pick(['#cfe0ff','#ffe7c2','#ffd0e8']),g=s.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,'#ffffff');g.addColorStop(.2,c+'aa');g.addColorStop(1,c+'00');s.fillStyle=g;s.fillRect(x-r,y-r,2*r,2*r);s.strokeStyle=c+'55';s.lineWidth=.6;s.beginPath();s.moveTo(x-r*1.6,y);s.lineTo(x+r*1.6,y);s.moveTo(x,y-r*1.6);s.lineTo(x,y+r*1.6);s.stroke()}}
+function resize(){const r=cv.getBoundingClientRect();dpr=Math.min(2,window.devicePixelRatio||1);W=Math.max(1,r.width);H=Math.max(1,r.height);cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);makeBg();clampCam()}
+new ResizeObserver(resize).observe(cv);
+
+/* ---------- galaxy generation ---------- */
+function genGalaxy(){
+  const g=G.g,N=Math.min(28+6*(g-1),54);
+  G.WW=Math.round(Math.sqrt(N*70000*1.6));G.WH=Math.round(G.WW/1.6);
+  const P=[];let tries=0;
+  while(P.length<N&&tries++<20000){const r=rnd(16,28),x=rnd(70,G.WW-70),y=rnd(70,G.WH-70);if(P.every(q=>Math.hypot(q.x-x,q.y-y)>150+q.r+r))P.push({x,y,r})}
+  const names=shuffle(PNAMES.slice());
+  G.planets=P.map((q,i)=>({id:i,name:names[i%names.length],x:q.x,y:q.y,r:q.r,owner:'n',ships:Math.round(rnd(8,22)+g*3),garrison:0,ind:Math.random()<.3?2:1,def:Math.random()<.2?1:0,
+    turret:false,relay:false,depot:false,hold:false,sup:0,build:null,queue:[],fx:{},auto:false,flash:0,capital:false,trait:null,type:pick(['rock','gas','ice','lava']),deco:Array.from({length:10},Math.random)}));
+  const inT=[G.planets[0]],out=G.planets.slice(1);let bott=0;
+  while(out.length){let bi=0,bd=1e9;out.forEach((o,i)=>{const d=Math.min(...inT.map(t=>dist(t,o)-o.r));if(d<bd){bd=d;bi=i}});bott=Math.max(bott,bd);inT.push(out.splice(bi,1)[0])}
+  G.range=Math.max(320,bott*1.05);
+  G.lanes=[];for(let i=0;i<G.planets.length;i++)for(let j=i+1;j<G.planets.length;j++)if(dist(G.planets[i],G.planets[j])<=G.range+G.planets[j].r)G.lanes.push([G.planets[i],G.planets[j]]);
+  G.adj=G.planets.map(()=>[]);for(const [a,b] of G.lanes){G.adj[a.id].push(b);G.adj[b.id].push(a)}
+  const k=g===1?3:g===2?4:5;const facs=['p',...shuffle(AI_ORDER.slice()).slice(0,k)];
+  const homes=[G.planets.slice().sort((a,b)=>(a.x+a.y*.3)-(b.x+b.y*.3))[0]];
+  while(homes.length<facs.length){let bp=null,bd=-1;for(const p of G.planets){if(homes.includes(p))continue;const d=Math.min(...homes.map(h=>dist(h,p)));if(d>bd){bd=d;bp=p}}homes.push(bp)}
+  G.fac={};G.M={};G.rel={};G.coal=false;G.aiMul=1+.15*(g-1)+.06*Math.max(0,g-4)**1.6;
+  facs.forEach((f,i)=>{
+    const h=homes[i];Object.assign(h,{owner:f,ind:3,def:1,r:30,capital:true,ships:f==='p'?45:40+g*6});
+    G.fac[f]={cr:f==='p'?0:80,tick:rnd(1,3),autoT:0,alive:true,offT:rnd(110,170)/(FACS[f].aggr||1),off:null};if(f!=='p')G.rel[f]={cease:0,cool:0};
+    const extra=f==='p'?1:1+Math.floor((g-1)/2);
+    G.planets.filter(p=>p.owner==='n').sort((a,b)=>dist(a,h)-dist(b,h)).slice(0,extra).forEach(p=>{p.owner=f;p.ships=18+g*3;p.ind=Math.max(p.ind,2)});
+  });
+  // special planets: strategic targets beyond raw planet count
+  const tk=Object.keys(TRAITS),cands=shuffle(G.planets.filter(p=>!p.capital));
+  cands.slice(0,Math.round(N*.24)).forEach((p,i)=>{p.trait=tk[i%tk.length];if(p.owner==='n'){p.ships=Math.round(p.ships*1.5)}});
+  // overlords: one faction per galaxy from the 3rd (more with the trial) grows into a real threat
+  const nl=(G.g>=3?1:0)+(TR('overlord')?1:0)+(G.g>=7?1:0);
+  if(G.mode!=='title')shuffle(facs.filter(k=>k!=='p')).slice(0,nl).forEach(k=>{G.fac[k].lord=true;const h=G.planets.find(p=>p.owner===k&&p.capital);if(h){h.ships*=2;h.def=Math.min(4,h.def+2);h.turret=true}});
+  if(G.rule==='fort')G.planets.forEach(p=>{p.def=Math.min(4,p.def+1);if(p.owner==='n')p.ships=Math.round(p.ships*1.4)});
+  G.planets.forEach(p=>p.garrison=p.ships);
+}
+function newCampaign(){
+  G.doc=setup.doc;G.trials=new Set(setup.tr);
+  G.g=1;G.score=0;G.t=0;G.tech={};G.news=[];G.stats={capt:0,destroyed:0,galaxies:0,capitals:0};G.modalOpen=false;G.capBonus=0;
+  for(let i=0;i<meta.lv.tech;i++){const t=pick(TECH.filter(t=>!G.tech[t.id]));if(t)G.tech[t.id]=1}
+  startGalaxy();G.fac.p.cr=120+60*meta.lv.credits;
+  news(`第${G.g}銀河「${GAL[0]}」で戦役開始。全勢力を滅ぼせば統一`,'#7fd6ff');if(heat()||G.doc!=='none')news(`教義「${DOCS[G.doc].name}」・試練 ${heat()}`,'#c9a8ff');renderSide(true);
+}
+function startGalaxy(){
+  G.rule=G.g===1?pick(['rich','gold','frontier']):pick(['rich','gold','frontier','nebula','fort','chaos','war','war','nebula']);
+  G.mode='play';genGalaxy();G.dir=null;G.dirT=45;G.kills=0;G.dirH=[];G.govG=0;
+  G.fleets=[];G.parts=[];G.fx=[];G.sel.clear();G.focus=null;G.hegT=0;G.lastTap=null;
+  G.ops=[];G.launches=[];G.mem={};G.vis=null;G.met=new Set(['p']);G.evT=90;G.pendingEv=null;G.crisis=false;G.capPenT=0;G.depotOff=0;G.fcapBonus=0;G.crisisAt=TR('crisis')?rnd(180,240):rnd(300,380);
+  G.mem={};G.met=new Set(['p']);G.vis=new Set();refreshM();computeSupply();computeVision();
+  setSpeed(1);hideOverlay();resize();focusHome();renderSide(true);renderNews();
+  news(`銀河の環境「${RULES[G.rule].name}」：${RULES[G.rule].desc}`,'#ffe08a');
+}
+
+/* ---------- actions ---------- */
+function send(from,to,k,silent){
+  k=Math.floor(k);if(k<1||from===to)return null;from.ships-=k;
+  const a=Math.atan2(to.y-from.y,to.x-from.x),M=Mof(from.owner);
+  const f={owner:from.owner,src:from.id,n:k,x:from.x+Math.cos(a)*from.r,y:from.y+Math.sin(a)*from.r,to,seed:Math.random()*6.28,atk:M.atk*SUP_A[from.sup||0],spd:M.spd*(from.relay?1.25:1)};
+  G.fleets.push(f);if(!silent&&from.owner==='p')tone(520,.07,'triangle',.025,300);return f;
+}
+function startBuild(p,k){
+  const B=BUILD[k],F=G.fac[p.owner];if(!B.can(p)||p.build)return false;
+  const c=Math.round(B.cost(p)*(p.owner==='p'?Math.pow(.9,T('build')):1));if(F.cr<c)return false;
+  F.cr-=c;p.build={k,t:0,dur:B.time*(p.owner==='p'?Math.pow(.85,T('build')):1)};
+  if(p.owner==='p')tone(392,.1,'square',.025,200);return true;
+}
+function finishBuild(p){const k=p.build.k;p.build=null;if(k==='ind')p.ind++;else if(k==='def')p.def++;else if(k==='turret')p.turret=true;else if(k==='depot'){p.depot=true;computeSupply()}else if(k==='gov'){p.gov=true;refreshM()}else p.relay=true;
+  p.flash=1;burst(p.x,p.y,col(p.owner),16,.8);if(p.owner==='p'){if(G.focus===p)news(`${p.name}：${BUILD[k].name}が完了`,'#ffe08a');tone(784,.08,'triangle',.02);tryQueue(p)}}
+function capture(t,owner){
+  const prev=t.owner,wasCap=t.capital;
+  t.owner=owner;t.flash=1;t.build=null;t.queue=[];t.fx={};t.auto=false;t.hold=false;t.auton=false;t.capital=false;t.def=Math.max(0,t.def-1);G.sel.delete(t);
+  G.fx.push({ring:true,x:t.x,y:t.y,r:t.r,c:col(owner),t:0});G.fx.push({glow:true,x:t.x,y:t.y,r:t.r*3,c:col(owner),t:.2});burst(t.x,t.y,col(owner),30,1.3);
+  if(owner==='p'){const pts=(isAI(prev)?50:20)*G.g*(t.trait?2:1)*(wasCap?3:1);G.score+=pts;G.stats.capt++;G.fx.push({x:t.x,y:t.y,txt:'+'+pts,t:0});tone(660,.12,'square',.03,500);setTimeout(()=>tone(990,.15,'triangle',.03),70);
+    news(`${t.name}を制圧${isAI(prev)?'（'+FACS[prev].name+'から奪取）':''}${t.trait?'：'+TRAITS[t.trait].name+'を獲得':''}`,'#7fd6ff')}
+  else if(prev==='p'){news(`${t.name}が${FACS[owner].name}に奪われた`,'#ff5c8a');tone(160,.25,'sawtooth',.04,-80)}
+  else if(isAI(prev)&&vis(t)&&Math.random()<.5)news(`${FACS[owner].name}が${FACS[prev].name}の${t.name}を攻略`,col(owner));
+  if(wasCap&&prev!=='n')capitalFell(prev,owner,t);
+  if(isAI(prev)&&G.fac[prev]&&G.fac[prev].alive&&!G.planets.some(p=>p.owner===prev))factionFell(prev,owner);
+  refreshM();computeSupply();
+}
+function capitalFell(fac,by,t){
+  const rest=G.planets.filter(p=>p.owner===fac);let rev=0;
+  for(const p of rest)if(Math.random()<.35){p.owner='n';p.queue=[];p.build=null;p.ships*=.6;p.garrison=Math.max(p.garrison,p.ships);p.flash=1;rev++}
+  const nc=G.planets.filter(p=>p.owner===fac).sort((a,b)=>b.ind-a.ind)[0];if(nc)nc.capital=true;
+  if(fac==='p'){news(`首都${t.name}が陥落！ ${rev}つの惑星が離反した`,'#ff5c8a');G.toast={txt:'首都陥落',t:3};tone(120,.6,'sawtooth',.05,-60)}
+  else{news(`${FACS[fac].name}の首都${t.name}が陥落、${rev}惑星が離反`,by==='p'?'#ffe08a':col(fac));if(by==='p'){G.stats.capitals++;achCheck();G.score+=300*G.g;G.govG=(G.govG||0)+1;refreshM();news('敵の官僚機構を吸収した：統治上限 +1（この銀河）','#ffe08a');G.toast={txt:`${FACS[fac].name}の首都を攻略`,t:3}}}
+}
+function factionFell(fac,by){
+  G.fac[fac].alive=false;G.fac[fac].off=null;
+  news(`${FACS[fac].name}が滅亡した`,col(fac));
+  if(by==='p'){G.score+=500*G.g*(G.fac[fac].lord?3:1);G.stats.destroyed++;G.toast={txt:`${FACS[fac].name} 滅亡`,t:3};if(G.fac[fac].lord){G.stats.lordDown=true;achCheck()}}
+  if(fac==='void'){G.stats.voidDown=true;achCheck();G.capBonus+=2;if(G.fac.p)G.fac.p.cr+=300;G.score+=3000*G.g;news('虚空の軍勢を撃退した！ 銀河を救った功績で統治上限 +2・資金 +300','#3df0d8');G.toast={txt:'危機を退けた',t:3}}
+}
+function arrive(f){
+  const t=f.to;
+  if(t.owner===f.owner){t.ships+=f.n;return}
+  // pincer: hits from a different planet of the same side within 4s overwhelm the defenders
+  t.hits=(t.hits||[]).filter(h=>G.t-h.t<4);let atk=f.atk;
+  if(t.hits.some(h=>h.o===f.owner&&h.s!==f.src)){atk*=f.owner==='p'&&T('pincer')?1.8:1.35;if(f.n>=4)G.fx.push({x:t.x,y:t.y+16,txt:'挟撃',t:0,c:col(f.owner)})}
+  t.hits.push({o:f.owner,s:f.src,t:G.t});
+  let def=defOf(t),dmg=f.n*atk/def;if(G.fx.length<160&&f.n>=3)G.fx.push({glow:true,x:f.x,y:f.y,r:8+Math.min(26,f.n*.6),c:col(f.owner),t:.5});
+  if(f.owner==='p'&&t.owner!=='n')G.kills+=Math.min(dmg,t.ships);else if(t.owner==='p'&&f.owner!=='p')G.kills+=Math.min(f.n,t.ships*def/atk);burst(f.x,f.y,col(f.owner),Math.min(10,2+f.n/4),.6);
+  if(t.owner==='p'&&T('shield')){const ab=Math.min(dmg,12);dmg-=ab;if(ab>3)G.fx.push({x:t.x,y:t.y,txt:'シールド',t:0,c:'#7fd6ff'})}
+  if(dmg>t.ships){t.ships=(dmg-t.ships)*def/atk;capture(t,f.owner)}else t.ships-=dmg;
+}
+
+/* ---------- AI ---------- */
+function aiTick(k){
+  const F=FACS[k],S=G.fac[k],mine=G.planets.filter(p=>p.owner===k);if(!mine.length)return;
+  const low=mine.find(p=>p.sup>0&&!p.depot&&!p.build);if(low&&S.cr>80&&Math.random()<.5)startBuild(low,'depot');
+  if(S.cr>60&&Math.random()<.5+F.dev*.3){
+    const front=mine.filter(p=>isFront(p)&&!p.build),back=mine.filter(p=>!isFront(p)&&!p.build);
+    let p=null,b=null;
+    if(back.length&&Math.random()<.5+F.dev*.2){p=back.filter(p=>p.ind<5).sort((a,b)=>a.ind-b.ind)[0];b='ind'}
+    if(!p&&front.length){p=pick(front);b=!p.turret&&Math.random()<.4?'turret':p.def<4?'def':'ind'}
+    if(p&&b)startBuild(p,b);
+  }
+  const sorted=mine.slice().sort((a,b)=>b.ships-a.ships),kk=1+Math.floor(mine.length/4),reserved=new Map(),cease=G.rel[k]?.cease>0;
+  for(const s of sorted.slice(0,kk)){
+    if(s.ships<15||(S.off&&S.off.stage===s))continue;
+    const avail=s.ships*.65*Mof(k).atk;let bestT=null,bc=1e9;
+    for(const t of G.planets){
+      if(t.owner===k||!inRange(s,t)||(t.owner==='p'&&cease))continue;
+      const travel=dist(s,t)/70,inc=(reserved.get(t)||0)+G.fleets.reduce((a,f)=>a+(f.to===t&&f.owner===k?f.n:0),0);
+      const need=(t.ships+prodOf(t)*travel)*defOf(t)+3-inc;if(avail<need*(1.35-F.aggr*.15))continue;
+      let c=dist(s,t)/6+need;
+      if(t.owner==='p')c*=G.coal?.55:(G.g===1?1.2:1.05);else if(isAI(t.owner))c*=G.coal?3:1;else c*=.9;
+      if(t.trait)c*=.8;if(t.capital)c*=.85;if(t.owner==='void')c*=.6;if(t.sup===2)c*=.8;if(G.hegT>0&&t.owner==='p'&&t.trait)c*=.4;
+      if(c<bc){bc=c;bestT=t}
+    }
+    if(bestT){send(s,bestT,s.ships*.65,true);reserved.set(bestT,(reserved.get(bestT)||0)+avail)}
+    else if(!isFront(s)&&s.ships>25)logistics(s);
+  }
+}
+function logistics(s){
+  const near=G.planets.filter(p=>p.owner===s.owner&&p!==s&&inRange(s,p));if(!near.length)return;
+  const enemies=G.planets.filter(p=>p.owner!==s.owner);if(!enemies.length)return;
+  const sc=p=>Math.min(...enemies.map(e=>dist(p,e)));
+  const t=near.sort((a,b)=>sc(a)-sc(b))[0];if(sc(t)<sc(s))send(s,t,s.ships*.6,true);
+}
+function checkCoalition(){
+  const nonN=G.planets.filter(p=>p.owner!=='n').length,mine=G.planets.filter(p=>p.owner==='p').length,ai=Object.keys(G.fac).filter(k=>isAI(k)&&G.fac[k].alive).length;
+  const share=nonN?mine/nonN:0;
+  if(!G.coal&&share>=(TR('coal')?.3:.4)&&ai>=2){G.coal=true;news('自軍の拡大を恐れた諸勢力が「対自軍包囲網」を結成した。敵どうしの争いが止まる','#ff5c8a');G.toast={txt:'対自軍包囲網 結成',t:3};tone(140,.5,'sawtooth',.04,60)}
+  else if(G.coal&&(share<(TR('coal')?.2:.3)||ai<2)){G.coal=false;news('包囲網が瓦解した','#ffe08a')}
+  $('coalTag').hidden=!(G.coal&&G.mode==='play');
+}
+
+/* ---------- supply ---------- */
+function computeSupply(){
+  for(const p of G.planets){p.psup=p.sup;p.sup=p.owner==='n'?0:2}
+  for(const k in G.fac){
+    const d=new Map(),q=[];
+    for(const p of G.planets)if(p.owner===k&&(p.capital||(p.depot&&!(k==='p'&&G.depotOff>0)))){d.set(p,0);q.push(p)}
+    while(q.length){const c=q.shift(),dc=d.get(c);for(const n of G.adj[c.id]){if(n.owner!==k||d.has(n))continue;d.set(n,dc+1);q.push(n)}}
+    for(const [p,h] of d)p.sup=h<=3?0:h<=5?1:2;
+  }
+  if(G.mode==='play'){const cut=G.planets.filter(p=>p.owner==='p'&&p.sup===2&&p.psup!==2);if(cut.length)news(`補給途絶：${cut.map(p=>p.name).join('、')}（補給基地を建てるか、首都とつなぎ直そう）`,'#ff5c8a')}
+}
+
+/* ---------- operations ---------- */
+function opPath(target){
+  const par=new Map(),q=[];for(const p of G.planets)if(p.owner==='p'){par.set(p,null);q.push(p)}
+  while(q.length){const c=q.shift();if(c===target)break;for(const n of G.adj[c.id])if(!par.has(n)&&seen(n)){par.set(n,c);q.push(n)}}
+  if(!par.has(target))return null;const path=[];let c=target;while(c){path.unshift(c);c=par.get(c)}return path;
+}
+function bfsOwn(base){const par=new Map([[base,null]]),dd=new Map([[base,0]]),q=[base];
+  while(q.length){const c=q.shift();for(const n of G.adj[c.id])if(n.owner===base.owner&&!dd.has(n)){dd.set(n,dd.get(c)+1);par.set(n,c);q.push(n)}}return{dd,par}}
+function newOp(t){if(G.ops.some(o=>o.target===t))return;if(G.ops.length>=opsMax()){G.toast={txt:`作戦は${opsMax()}つまで。どれかを中止しよう`,t:2.2};return}const op={id:G.opId++,target:t,stance:1,status:'準備中',ready:0,path:null};G.ops.push(op);opTick(op);news(`作戦${op.id}：${t.name}への攻勢を開始`,'#7fd6ff');tone(600,.12,'triangle',.03,300)}
+// what we believe about a planet: live data if visible, the last sighting if it is in the fog
+const intel=p=>vis(p)||!G.mem[p.id]?p:Object.assign(Object.create(p),G.mem[p.id]);
+const travel=(a,b)=>Math.max(0,dist(a,b)-b.r)/(70*Mof('p').spd*(a.relay?1.25:1));
+function opEstimate(op,front,base){
+  const I=intel(front),est=I!==front,m=STANCE[op.stance].m;
+  const spare=p=>isHold(p)?p.ships*.5:p.ships-5;
+  const atk=G.planets.filter(p=>p.owner==='p'&&p.ships>8&&inRange(p,front)&&!G.launches.some(l=>l.p===p));
+  const pw=atk.map(p=>spare(p)*Mof('p').atk*SUP_A[p.sup]).sort((a,b)=>b-a);
+  const pinc=T('pincer')?1.8:1.35,pinBonus=pw.length>1?pw.slice(1).reduce((a,v)=>a+v,0)*(pinc-1):0;
+  const power=pw.reduce((a,v)=>a+v,0)+pinBonus;
+  const inc=G.fleets.reduce((a,f)=>a+(f.to===front&&f.owner==='p'?f.n*f.atk:0),0)+G.launches.filter(l=>l.to===front).reduce((a,l)=>a+spare(l.p)*Mof('p').atk,0);
+  const stg=new Set(atk),trans=G.fleets.reduce((a,f)=>a+(f.owner==='p'&&stg.has(f.to)?f.n*Mof('p').atk:0),0);
+  const tmax=atk.reduce((a,p)=>Math.max(a,travel(p,front)),travel(base,front));
+  const enemy=Math.max(0,I.ships),grow=front.owner==='n'?0:prodOf(I)*tmax,df=defOf(I),tur=I.turret?6*Math.max(1,atk.length):0;
+  const reinf=isAI(front.owner)?G.planets.filter(q=>q!==front&&q.owner===front.owner&&inRange(q,front)&&seen(q)).reduce((a,q)=>a+Math.max(0,intel(q).ships-15)*.4,0)*.6*df:0;
+  const need=(enemy+grow)*df+tur+reinf+4;
+  return{atk,power,inc,need,m,est,trans,reinf,enemy,grow,df,tur,pin:pinBonus,spare,ago:est?Math.floor(G.t-(G.mem[front.id].t||0)):0};
+}
+function opTick(op){
+  if(op.target.owner==='p'){G.ops=G.ops.filter(o=>o!==op);news(`作戦${op.id}完了：${op.target.name}を確保`,'#7fd6ff');return}
+  const path=opPath(op.target);op.path=path;
+  if(!path||path.length<2){op.status='経路なし';op.ready=0;op.info=null;return}
+  const base=path[0],front=path[1];op.base=base;op.front=front;
+  const E=opEstimate(op,front,base);op.info=E;
+  if(E.inc>=E.need*E.m){op.status='攻撃中';op.ready=1;return}
+  op.ready=Math.min(1,(E.power+E.inc)/(E.need*E.m));
+  // if we already beat the bare requirement and the gathering has stopped growing, don't wait for the stance margin forever
+  const tot=E.power+E.inc;if(tot>(op.peak||0)*1.03+1){op.peak=tot;op.stall=0}else op.stall=(op.stall||0)+1;
+  E.stallGo=tot>=E.need&&E.trans<E.need*.1?Math.max(0,8-op.stall):-1;
+  if(op.force||(tot>=E.need*E.m||E.stallGo===0)&&E.power>0){op.force=false;op.peak=0;op.stall=0;
+    if(!E.atk.length){op.status='突入できる惑星がない';return}
+    // time the launches so every wave lands within the pincer window: farthest planets leave first
+    const T0=Math.max(...E.atk.map(p=>travel(p,front)));
+    for(const p of E.atk)G.launches.push({p,to:front,at:G.t+(T0-travel(p,front))*.9});
+    op.status='攻撃中';if(front!==op.target)G.fx.push({x:front.x,y:front.y,txt:'突入',t:0,c:'#7fd6ff'})}
+  else op.status=front===op.target?'集結中':`集結中（${front.name}経由）`;
+}
+function launchTick(){
+  G.launches=G.launches.filter(l=>{if(G.t<l.at)return true;const p=l.p;if(p.owner==='p'&&l.to.owner!=='p'){const k=isHold(p)?p.ships*.5:p.ships-5;send(p,l.to,k,true)}return false});
+}
+// Rear transport: a flow field over our own territory toward the places that need ships.
+// While operations run, everything flows to their staging planets; otherwise to the front line.
+// Fleets skip ahead to the farthest planet on the route they can reach, so they don't stop at every hop.
+// Hostile strength that could hit this planet (neutrals never attack). Front planets keep a garrison
+// sized to it and release the rest, so production on quiet fronts no longer piles up unused.
+function threatOf(p){let t=0;for(const q of G.planets)if(q.owner!=='p'&&q.owner!=='n'&&hostile('p',q.owner)&&inRange(q,p)&&seen(q))t=Math.max(t,intel(q).ships);return t}
+function garrisonOf(p){if(!isFront(p))return 2;const t=threatOf(p);return t>0?Math.max(15,Math.round(t*.6/defOf(p))+10):8}
+function flowTick(){
+  const own=G.planets.filter(p=>p.owner==='p');if(!own.length)return;
+  const staging=new Set();for(const op of G.ops)if(op.front)for(const p of own)if(inRange(p,op.front))staging.add(p);
+  const fronts=own.filter(p=>isFront(p)),hot=fronts.filter(p=>threatOf(p)>0);
+  const opsOn=staging.size>0,sinks=opsOn?staging:new Set(hot.length?hot:fronts);if(!sinks.size)return;
+  const d=new Map(),par=new Map(),q=[];for(const s of sinks){d.set(s,0);q.push(s)}
+  while(q.length){const c=q.shift();for(const n of G.adj[c.id])if(n.owner==='p'&&!d.has(n)){d.set(n,d.get(c)+1);par.set(n,c);q.push(n)}}
+  for(const p of own){
+    if(sinks.has(p)||isHold(p)||!d.has(p))continue;
+    if(!isAuto(p)&&!(opsOn&&d.get(p)<=6))continue;
+    const keep=garrisonOf(p);if(p.ships<keep+6)continue;
+    let tgt=null;for(let c=par.get(p);c;c=par.get(c))if(inRange(p,c))tgt=c;
+    if(tgt)send(p,tgt,p.ships-keep,true);
+  }
+}
+// AI planets under a winning attack call for help from neighbours, so timing and pincers matter
+function aiDefTick(){
+  for(const p of G.planets){if(!isAI(p.owner)||(p.reinf||0)>G.t)continue;
+    const inc=G.fleets.reduce((a,f)=>a+(f.to===p&&f.owner!==p.owner?f.n*f.atk:0),0);if(inc<10||inc<p.ships*defOf(p)*.8)continue;
+    let sent=0;for(const n of G.planets)if(n!==p&&n.owner===p.owner&&n.ships>15&&inRange(n,p)&&!(G.fac[n.owner].off&&G.fac[n.owner].off.stage===n)){send(n,p,n.ships*.4,true);sent++}
+    if(sent){p.reinf=G.t+6;if(vis(p)&&G.fleets.some(f=>f.to===p&&f.owner==='p'))G.fx.push({x:p.x,y:p.y-p.r-10,txt:'援軍',t:0,c:col(p.owner)})}}
+}
+// Directives: short timed objectives from high command. They set the tempo and pay out in what you lack.
+const DIR_RW={gov:{l:'統治上限 +1（この銀河）',f:()=>{G.govG=(G.govG||0)+1;refreshM()}},cr:{l:'資金',f:d=>{G.fac.p.cr+=d.amt}},fcap:{l:'維持上限 +40（この銀河）',f:()=>{G.fcapBonus=(G.fcapBonus||0)+40;refreshM()}}};
+function dirTick(){
+  const d=G.dir;
+  // pace history: directives are sized against what you have actually been doing for the last 90s
+  const H=G.dirH||(G.dirH=[]);H.push([G.kills,G.stats.capt]);if(H.length>90)H.shift();
+  if(!d){if((G.dirT-=1)>0)return;G.dirT=rnd(60,90);
+    const span=Math.max(30,H.length),kr=(G.kills-H[0][0])/span,cr=(G.stats.capt-H[0][1])/span;
+    const own=G.planets.filter(p=>p.owner==='p'),busy=t=>G.ops.some(o=>o.target===t||o.front===t)||G.fleets.some(f=>f.owner==='p'&&f.to===t);
+    // a real objective: a well-defended planet that is not already under attack, ideally a capital or special planet
+    const cand=G.planets.filter(t=>isAI(t.owner)&&t.owner!=='void'&&seen(t)&&!busy(t)&&own.some(o=>dist(o,t)<rangeOf(o)*1.6)).sort((a,b)=>intel(b).ships*defOf(b)*(b.capital||b.trait?1.5:1)-intel(a).ships*defOf(a)*(a.capital||a.trait?1.5:1));
+    const rw=Mof('p').n>=Mof('p').cap-1&&Math.random()<.6?'gov':pick(['gov','cr','cr','fcap']),amt=150+60*G.g,r=Math.random();
+    if(cand.length&&r<.45){const t=cand[Math.floor(Math.min(cand.length,4)*Math.random())];G.dir={kind:'cap',target:t,t:100,rw,amt}}
+    else if(r<.75)G.dir={kind:'capN',goal:clamp(Math.ceil(cr*90*1.15)+1,2,6),start:G.stats.capt,t:90,rw,amt};
+    else G.dir={kind:'kill',goal:Math.round(clamp(kr*75*1.15,60+30*G.g,150+100*G.g)/10)*10,start:G.kills,t:75,rw,amt};
+    news(`司令部から指令：${dirText(G.dir)}（報酬：${dirRw(G.dir)}）`,'#ffe08a');tone(700,.1,'triangle',.03,200);return}
+  d.t-=1;
+  const done=d.kind==='cap'?d.target.owner==='p':d.kind==='capN'?G.stats.capt-d.start>=d.goal:G.kills-d.start>=d.goal;
+  if(done){DIR_RW[d.rw].f(d);G.stats.dirs=(G.stats.dirs||0)+1;achCheck();G.score+=200*G.g;news(`指令達成！ ${dirRw(d)}を得た`,'#7ff0b0');G.toast={txt:'指令達成',t:2.5};tone(880,.15,'triangle',.03,300);G.dir=null}
+  else if(d.t<=0||(d.kind==='cap'&&!isAI(d.target.owner))){news('指令は期限切れになった','#8d97c7');G.dir=null}
+}
+const dirText=d=>d.kind==='cap'?`${Math.ceil(d.t)}秒以内に${d.target.name}（${FACS[d.target.owner]?.name||''}・${d.target.capital?'首都':d.target.trait?'特産星':'拠点'}）を制圧`:d.kind==='capN'?`${Math.ceil(d.t)}秒以内に惑星を${d.goal}つ制圧（${G.stats.capt-d.start}/${d.goal}）`:`${Math.ceil(d.t)}秒以内に敵艦を${d.goal}隻撃破（${Math.floor(G.kills-d.start)}/${d.goal}）`;
+const dirRw=d=>d.rw==='cr'?`資金 +${d.amt}`:DIR_RW[d.rw].l;
+function holdTick(){
+  for(const p of G.planets){if(!isHold(p))continue;
+    const inc=G.fleets.reduce((a,f)=>a+(f.to===p&&f.owner!=='p'?f.n*f.atk:0),0);
+    if(inc>p.ships*defOf(p)*.9)for(const n of G.adj[p.id])if(n.owner==='p'&&!isHold(n)&&n.ships>15)send(n,p,n.ships*.5,true)}
+}
+
+/* ---------- world events ---------- */
+function spawnVoid(){
+  const edge=pick(['l','r','t','b']),sc=p=>edge==='l'?p.x:edge==='r'?G.WW-p.x:edge==='t'?p.y:G.WH-p.y;
+  const ps=G.planets.filter(p=>!p.capital).sort((a,b)=>sc(a)-sc(b)).slice(0,3);
+  G.fac.void={cr:200,tick:2,autoT:0,alive:true,offT:9e9,off:null};
+  ps.forEach(p=>{p.owner='void';p.queue=[];p.ships=(40+G.g*10)*(TR('crisis')?1.5:1);p.depot=true;p.ind=3;p.def=2;p.build=null;p.flash=1;burst(p.x,p.y,col('void'),40,1.5)});
+  G.crisis=true;refreshM();computeSupply();return ps;
+}
+function crisisEvent(){const ps=spawnVoid();ps.forEach(remember);G.met.add('void');G.cam.x=ps[0].x;G.cam.y=ps[0].y;clampCam();
+  news('虚空の軍勢が銀河の外縁に出現した','#3df0d8');
+  return{title:'虚空の侵略',text:`銀河の外縁、${ps.map(p=>p.name).join('・')}が正体不明の軍勢に飲み込まれた。生産力は桁違いで、全ての勢力が標的になる。諸勢力は彼らへの対処を優先し始めた。撃退すれば統治上限 +2・資金 +300。`,
+    ch:[{l:'迎え撃つ',s:'虚空の軍勢を倒さない限り、銀河統一はできない',f:()=>{}},
+        {l:'諸勢力と停戦して備える（150資金）',s:'全ての敵勢力と120秒停戦する',ok:()=>G.fac.p.cr>=150,f:()=>{G.fac.p.cr-=150;for(const k in G.rel)if(G.fac[k]?.alive)G.rel[k].cease=Math.max(G.rel[k].cease,120)}}]}}
+function rollEvent(){
+  const capital=G.planets.find(p=>p.owner==='p'&&p.capital),cr=()=>G.fac.p.cr;
+  const ais=Object.keys(G.fac).filter(k=>isAI(k)&&k!=='void'&&G.fac[k].alive);
+  const big=ais.map(k=>[k,G.planets.filter(p=>p.owner===k).length]).sort((a,b)=>b[1]-a[1])[0];
+  const pool=[
+    {w:3,ev:()=>({title:'交易ブーム',text:'銀河の交易路が活気づいている。この好機をどう使うか。',ch:[
+      {l:'利益を受け取る',s:'資金 +200',f:()=>{G.fac.p.cr+=200}},
+      {l:'設備に投資する（100資金）',s:'産業の低い自軍惑星2つの産業 +1',ok:()=>cr()>=100,f:()=>{G.fac.p.cr-=100;G.planets.filter(p=>p.owner==='p'&&p.ind<5).sort((a,b)=>a.ind-b.ind).slice(0,2).forEach(p=>{p.ind++;p.flash=1})}}]})},
+    {w:capital?2:0,ev:()=>({title:'難民船団',text:'戦火を逃れた船団が、首都への受け入れを求めている。',ch:[
+      {l:'受け入れる',s:'首都に +40艦。ただし240秒間 統治上限 -2',f:()=>{capital.ships+=40;G.capPenT=240}},
+      {l:'断る',s:'何も起きない',f:()=>{}}]})},
+    {w:capital?2:0,ev:()=>({title:'傭兵艦隊',text:'腕利きの傭兵艦隊が雇い主を探している。維持上限を超えた分は維持費がかかる。',ch:[
+      {l:'雇う（220資金）',s:'首都に +70艦',ok:()=>cr()>=220,f:()=>{G.fac.p.cr-=220;capital.ships+=70;capital.flash=1}},
+      {l:'見送る',s:'何も起きない',f:()=>{}}]})},
+    {w:2,ev:()=>({title:'兵站改革',text:'参謀本部が補給体制の見直しを提案している。',ch:[
+      {l:'輸送艦を増やす（150資金）',s:'この銀河の間、維持上限 +40',ok:()=>cr()>=150,f:()=>{G.fac.p.cr-=150;G.fcapBonus=(G.fcapBonus||0)+40}},
+      {l:'見送る',s:'何も起きない',f:()=>{}}]})},
+    {w:ais.length>=2&&!G.coal?2:0,ev:()=>{const k=ais.slice().sort((a,b)=>G.planets.filter(p=>p.owner===a).length-G.planets.filter(p=>p.owner===b).length)[0];
+      return{title:'同盟の打診',text:`${FACS[k].name}が、共通の敵に対する協力を申し出てきた。`,ch:[
+      {l:'受ける',s:`${FACS[k].name}と300秒の停戦（無償）`,f:()=>{G.rel[k].cease=Math.max(G.rel[k].cease,300);news(`${FACS[k].name}と協力関係を結んだ`,'#7ff0b0')}},
+      {l:'断る',s:'何も起きない',f:()=>{}}]}}},
+    {w:2,ev:()=>({title:'補給路への破壊工作',text:'敵の工作員が補給網を狙っているとの情報が入った。',ch:[
+      {l:'警備を強化する（120資金）',s:'被害なし',ok:()=>cr()>=120,f:()=>{G.fac.p.cr-=120}},
+      {l:'放置する',s:'60秒間、補給基地が機能しない（首都からの補給は無事）',f:()=>{G.depotOff=60;computeSupply()}}]})},
+    {w:traitN('p','ruins')?2:0,ev:()=>{const r=G.planets.find(p=>p.owner==='p'&&p.trait==='ruins');return{title:'古代兵器の発見',text:`${r.name}の遺跡の地下から、未知の兵器が見つかった。`,ch:[
+      {l:'起動する',s:`${r.name}に +60艦・防衛 +1`,f:()=>{r.ships+=60;r.def=Math.min(4,r.def+1);r.flash=1}},
+      {l:'研究する',s:'ランダムな技術を1段階、無料で開発',f:()=>{const t=pick(TECH.filter(t=>t.cost[T(t.id)]!==undefined));if(t){G.tech[t.id]=T(t.id)+1;news(`技術「${t.name}」Lv${G.tech[t.id]}を獲得`,'#ffe08a')}}}]}}},
+    {w:big&&big[1]>=5&&!(G.fac.rebel&&G.fac.rebel.alive)?3:0,ev:()=>{const k=big[0];const ps=shuffle(G.planets.filter(p=>p.owner===k&&!p.capital));const n=Math.max(2,Math.round(ps.length*.4));
+      FACS.rebel.name=FACS[k].name+'独立軍';G.fac.rebel={cr:120,tick:2,autoT:0,alive:true,offT:150,off:null};G.rel.rebel={cease:0,cool:0};
+      ps.slice(0,n).forEach(p=>{p.owner='rebel';p.queue=[];p.flash=1});
+      const c=G.planets.filter(p=>p.owner==='rebel').sort((a,b)=>b.ind-a.ind)[0];c.capital=true;
+      refreshM();computeSupply();news(`${FACS[k].name}で内乱。${n}惑星が独立を宣言`,col('rebel'));
+      return{title:'内乱勃発',text:`${FACS[k].name}で内乱が起き、${n}つの惑星が「${FACS.rebel.name}」として独立した。${FACS[k].name}は大きく揺らいでいる。`,ch:[
+      {l:'独立軍を支援する（100資金）',s:'独立軍と300秒停戦し、独立軍の各惑星に +15艦',ok:()=>cr()>=100,f:()=>{G.fac.p.cr-=100;G.rel.rebel.cease=300;G.planets.forEach(p=>{if(p.owner==='rebel')p.ships+=15})}},
+      {l:'静観する',s:'混乱に乗じるかは自由',f:()=>{}}]}}},
+  ].filter(e=>e.w>0);
+  let x=Math.random()*pool.reduce((a,e)=>a+e.w,0);for(const e of pool){x-=e.w;if(x<=0)return e.ev()}return pool[0].ev();
+}
+
+/* ---------- realm-wide policies, build queue ---------- */
+const isHold=p=>p.owner==='p'&&(p.hold||(G.pol.hold==='key'&&(p.capital||!!p.trait))||(G.pol.hold==='front'&&isFront(p)));
+const isAuto=p=>p.owner==='p'&&(G.pol.auto==='all'||(G.pol.auto==='pick'&&p.auto));
+const qCount=(p,k)=>(p.build&&p.build.k===k?1:0)+(p.queue||[]).filter(x=>x===k).length;
+function canQueue(p,k){if((p.queue||[]).length>=Q_MAX)return false;const n=qCount(p,k);
+  if(k==='ind')return p.ind+n<5;if(k==='def')return p.def+n<4;if(k==='turret')return!p.turret&&!n;if(k==='relay')return!p.relay&&!n;if(k==='depot')return!p.depot&&!n;if(k==='gov')return!p.gov&&!n;return false}
+const buildCost=(p,k,lvOff=0)=>{const q=Object.assign({},p,{ind:p.ind+(k==='ind'?lvOff:0),def:p.def+(k==='def'?lvOff:0)});return Math.round(BUILD[k].cost(q)*Math.pow(.9,T('build')))};
+function enqueue(p,k){if(!canQueue(p,k))return false;p.queue=p.queue||[];p.queue.push(k);if(!p.build)tryQueue(p);tone(500,.06,'triangle',.02,200);return true}
+function tryQueue(p){if(p.build||!p.queue||!p.queue.length)return;const k=p.queue[0];if(!BUILD[k].can(p)){p.queue.shift();return tryQueue(p)}
+  if(startBuild(p,k))p.queue.shift()}
+// auto development: rear planets grow industry, the front fortifies, stretched supply gets a depot. Keeps a reserve for tech.
+function demob(){const M=Mof('p');let ex=Math.floor(M.fleet-M.fcap),n=0;if(ex<=0)return;
+  for(const p of G.planets.filter(p=>p.owner==='p'&&!isFront(p)&&!isHold(p)).sort((a,b)=>b.ships-a.ships)){if(ex<=0)break;const k=Math.min(ex,Math.floor(p.ships-2));if(k<=0)continue;p.ships-=k;ex-=k;n+=k}
+  if(n){G.fac.p.cr+=n*.5;refreshM();news(`後方の${n}艦を解役した。資金 +${Math.round(n*.5)}`,'#7fd6ff');tone(420,.08,'triangle',.03)}else G.toast={txt:'後方に解役できる艦がいない（前線と防衛拠点の艦は残す）',t:2.2}}
+function autoBuild(){
+  const F=G.fac.p,mine=G.planets.filter(p=>p.owner==='p'),nt=TECH.filter(t=>t.cost[T(t.id)]!==undefined).map(techCost),reserve=G.pol.prod==='civ'&&nt.length?Math.max(100,Math.min(...nt)):100;
+  for(const p of mine)tryQueue(p);
+  if(!G.pol.build)return;
+  const idle=mine.filter(p=>!p.build&&!(p.queue&&p.queue.length));if(!idle.length)return;
+  const opts=[],MM=Mof('p');
+  if(MM.n>MM.cap&&!mine.some(p=>qCount(p,'gov'))){const g=idle.filter(p=>!p.gov&&!isFront(p)).sort((a,b)=>b.ind-a.ind)[0]||idle.find(p=>!p.gov);if(g)opts.push([g,'gov',-1])}
+  const stretched=mine.filter(p=>p.sup>=1&&!p.depot);
+  if(stretched.length&&!mine.some(p=>p.build&&p.build.k==='depot')){const d=stretched.filter(p=>idle.includes(p)).sort((a,b)=>b.sup-a.sup||G.adj[b.id].length-G.adj[a.id].length)[0];if(d)opts.push([d,'depot',0])}
+  for(const p of idle){const fr=isFront(p);
+    if(fr){if(p.def<2)opts.push([p,'def',1+p.def]);else if(!p.turret)opts.push([p,'turret',2]);else if(p.def<4)opts.push([p,'def',3+p.def])}
+    else if(p.ind<5)opts.push([p,'ind',1+p.ind])}
+  opts.sort((a,b)=>a[2]-b[2]);
+  for(const [p,k] of opts){if(F.cr<buildCost(p,k)+reserve)break;if(startBuild(p,k))return}
+}
+
+/* ---------- AI grand offensives (announced, so the player can prepare or strike first) ---------- */
+const offCd=k=>rnd(130,190)/(FACS[k].aggr||1)*(G.rule==='war'?.6:1);
+function offTick(k,dt){
+  const S=G.fac[k];if(!S||!S.alive||k==='void')return;
+  if(S.off){const o=S.off;o.t-=dt;
+    if(o.stage.owner!==k||o.target.owner===k||!hostile(k,o.target.owner)){if(o.target.owner==='p'&&o.stage.owner!==k)news(`${FACS[k].name}の大攻勢は拠点${o.stage.name}を失って頓挫した`,'#7ff0b0');S.off=null;S.offT=offCd(k);return}
+    if((o.feedT=(o.feedT||0)-dt)<=0){o.feedT=3;const {dd,par}=bfsOwn(o.stage);for(const [p,h] of dd){if(p===o.stage||h>4||p.ships<12)continue;const nx=par.get(p);if(nx&&inRange(p,nx))send(p,nx,p.ships-6,true)}}
+    if(o.t<=0){let n=0;for(const p of G.planets)if(p.owner===k&&inRange(p,o.target)&&p.ships>8){send(p,o.target,p.ships*.85,true);n++}
+      if(o.target.owner==='p'){news(`${FACS[k].name}の大攻勢が${o.target.name}に襲いかかる！`,'#ff5c8a');tone(110,.5,'sawtooth',.05,40)}
+      S.off=null;S.offT=offCd(k)}
+    return}
+  if((S.offT-=dt)>0)return;
+  const mine=G.planets.filter(p=>p.owner===k);let best=null,bs=1e9;
+  for(const t of G.planets){if(t.owner===k||t.owner==='n'||!hostile(k,t.owner)||(t.owner==='p'&&G.rel[k]?.cease>0))continue;
+    const st=mine.filter(p=>inRange(p,t));if(!st.length)continue;
+    let sc=t.ships*defOf(t)-(t.capital?30:0)-(t.trait?20:0);if(t.owner==='p')sc*=G.coal?.6:.8;
+    if(sc<bs){bs=sc;best=[t,st.sort((a,b)=>b.ships-a.ships)[0]]}}
+  if(!best){S.offT=30;return}
+  const dur=k==='raid'?30:45;S.off={target:best[0],stage:best[1],t:dur,dur};
+  if(best[0].owner==='p'){news(vis(best[1])?`⚠ ${FACS[k].name}が${best[1].name}に兵を集めている。${dur}秒後に${best[0].name}へ大攻勢`:`⚠ 斥候報告：${FACS[k].name}の大軍が${best[0].name}方面に迫っている（${dur}秒後）。集結地は視界外`,'#ff5c8a');G.met.add(k);G.toast={txt:`${FACS[k].name}：${best[0].name}への大攻勢を準備中`,t:3};tone(150,.4,'sawtooth',.04,30)}
+}
+
+/* ---------- hegemony: an alternative win route through special planets ---------- */
+function hegNeed(){const n=G.planets.filter(p=>p.trait).length;return Math.max(3,Math.ceil(n*.6))}
+function hegemonyCheck(dt){
+  const have=G.planets.filter(p=>p.trait&&p.owner==='p').length,need=hegNeed();
+  if(have>=need){if(G.hegT===0){news(`特産星を${have}つ支配。${HEG_T}秒守り切れば覇権確立（銀河統一）。諸勢力が奪還に動き出した`,'#ffe08a');G.toast={txt:'覇権まで 残り'+HEG_T+'秒',t:3}}
+    G.hegT+=dt;if(G.hegT>=HEG_T)galaxyCleared('heg')}
+  else if(G.hegT>0){G.hegT=0;news('特産星を失い、覇権への道が途切れた','#ff5c8a')}
+}
+
+/* ---------- fog of war: you only see one hop past your borders (two with sensors) and around your fleets ---------- */
+const vis=p=>!G.vis||G.vis.has(p);
+const seen=p=>!G.vis||!!G.mem[p.id];
+const visF=f=>!G.vis||f.owner==='p'||G.planets.some(p=>G.vis.has(p)&&Math.abs(p.x-f.x)<G.range*.8&&dist(p,f)<G.range*.8);
+function remember(p){G.mem[p.id]={owner:p.owner,ships:p.ships,ind:p.ind,def:p.def,turret:p.turret,relay:p.relay,depot:p.depot,capital:p.capital,t:G.t}}
+function computeVision(){
+  if(G.mode!=='play'){G.vis=null;return}
+  const hops=T('sensor')?2:1,v=new Set(),q=[],d=new Map();
+  for(const p of G.planets)if(p.owner==='p'){d.set(p,0);q.push(p)}
+  while(q.length){const c=q.shift();v.add(c);const dc=d.get(c);if(dc>=hops)continue;for(const n of G.adj[c.id])if(!d.has(n)){d.set(n,dc+1);q.push(n)}}
+  for(const f of G.fleets)if(f.owner==='p')for(const p of G.planets)if(dist(p,f)<150)v.add(p);
+  G.vis=v;
+  for(const p of v){if(!G.mem[p.id]&&p.trait&&G.t>1)news(`探索：${p.name}に${TRAITS[p.trait].name}を発見`,'#ffe08a');remember(p);
+    if(isAI(p.owner)&&!G.met.has(p.owner)){G.met.add(p.owner);if(G.t>1){news(`${FACS[p.owner].name}と接触した`,col(p.owner));G.fx.push({x:p.x,y:p.y,txt:'接触：'+FACS[p.owner].name,t:0,c:col(p.owner)})}}}
+}
+function propaganda(){
+  for(const p of G.planets){
+    if(p.owner==='p'||p.capital||!G.adj[p.id].some(n=>n.owner==='p'))continue;
+    const ok=(p.owner==='n'&&p.ships<35&&Math.random()<.12)||(isAI(p.owner)&&p.sup===2&&Math.random()<.1);
+    if(ok){const prev=p.owner;p.ships=Math.max(5,p.ships*.5);news(`宣伝工作：${p.name}が${prev==='n'?'':FACS[prev].name+'から'}寝返った`,'#7ff0b0');capture(p,'p');return}
+  }
+}
+
+/* ---------- update ---------- */
+function update(dt){
+  G.t+=dt;
+  if((G.mT-=dt)<=0){G.mT=.5;refreshM()}
+  if((G.assignT-=dt)<=0){G.assignT=4;if(G.mode==='play'){checkCoalition();hegemonyCheck(4)}}
+  if((G.supT-=dt)<=0){G.supT=1;computeSupply()}
+  if((G.visT=(G.visT||0)-dt)<=0){G.visT=.25;computeVision()}
+  if(G.mode==='play'&&T('propa')&&(G.propT=(G.propT||20)-dt)<=0){G.propT=20;propaganda()}
+  if(G.capPenT>0)G.capPenT-=dt;if(G.depotOff>0)G.depotOff-=dt;
+  if(G.mode==='play'&&(G.opT-=dt)<=0){G.opT=1;for(const op of G.ops.slice())opTick(op);holdTick();aiDefTick();dirTick()}
+  if(G.mode==='play'&&!G.pendingEv&&(G.evT-=dt)<=0){G.evT=G.rule==='chaos'?rnd(55,85):rnd(110,170);G.pendingEv=(!G.crisis&&G.t>=G.crisisAt)?crisisEvent():rollEvent()}
+  for(const k in G.rel){const r=G.rel[k];if(r.cease>0&&(r.cease-=dt)<=0)news(`${FACS[k].name}との停戦が終わった`,'#ffb347');if(r.cool>0)r.cool-=dt}
+  for(const k in G.fac){const F=G.fac[k];
+    for(const p of G.planets)if(p.owner===k)F.cr+=incOf(p)*dt;
+    // upkeep: ships beyond the sustainable cap cost credits; production never stops, it only halves when the treasury runs dry
+    const up=Mof(k).up||0;F.cr-=up*dt;const was=F.broke;F.broke=F.cr<=0&&up>0;if(F.cr<0)F.cr=0;
+    if(k==='p'&&F.broke&&!was)news('資金が尽きて維持費を払えない。全惑星の生産が半減中（艦を使うか、生産方針を「上限まで」にして超過分を解役しよう）','#ff5c8a');
+    if(isAI(k)&&F.alive&&(F.tick-=dt)<=0){F.tick=rnd(2.5,4)/Math.sqrt(G.aiMul);aiTick(k)}
+  }
+  if(G.mode==='play'&&TR('clock')&&G.t>900){gameOver(false,'時限切れ：900秒以内に統一できなかった');return}
+  if(G.mode==='play'&&(G.flowT=(G.flowT||0)-dt)<=0){G.flowT=1;flowTick()}
+  if(G.launches.length)launchTick();
+  if(G.mode==='play'&&(G.buildT-=dt)<=0){G.buildT=1;autoBuild()}
+  for(const k in G.fac)if(isAI(k))offTick(k,dt);
+  let conv=0;
+  for(const p of G.planets){
+    if(p.owner==='n'){if(p.ships<p.garrison)p.ships+=.12*dt}
+    else if(p.sup===2&&p.ships>5)p.ships-=p.ships*.008*dt;
+    if(p.owner==='p'){const pr=prodOf(p)*dt,stop=G.pol.prod==='civ'||(G.pol.prod==='cap'&&Mof('p').fleet>=Mof('p').fcap);
+      // production that does not become ships (policy stop, or the planet is full) is converted into credits
+      const add=stop?0:Math.max(0,Math.min(pr,capOf(p)-p.ships));p.ships+=add;conv+=(pr-add)*CONV*(G.doc==='trade'?1.5:1)}
+    else if(p.owner!=='n'&&p.ships<capOf(p)&&Mof(p.owner).fleet<Mof(p.owner).fcap)p.ships=Math.min(capOf(p),p.ships+prodOf(p)*dt);
+    for(const k in p.fx)if(p.fx[k]>0)p.fx[k]-=dt;
+    if(p.build&&(p.build.t+=dt)>=p.build.dur)finishBuild(p);
+    p.laser=null;
+    if(p.turret&&p.owner!=='n'){let tg=null,bd=160;for(const f of G.fleets){if(f.owner===p.owner||!hostile(p.owner,f.owner)||(f.owner==='p'&&T('stealth')))continue;const d=Math.hypot(f.x-p.x,f.y-p.y);if(d<bd){bd=d;tg=f}}
+      if(tg){tg.n-=2.4*Mof(p.owner).atk*dt;p.laser=tg}
+      else if(p.owner==='p'&&T('cannon')){const e=G.adj[p.id].find(q=>q.owner!=='p'&&q.owner!=='n'&&hostile('p',q.owner)&&q.ships>1);if(e){e.ships-=1.1*dt;p.laser=e}}}
+  }
+  if(G.fac.p&&dt>0){G.fac.p.cr+=conv;G.convR=G.convR*.95+conv/dt*.05}
+  const FL=G.fleets;
+  for(let i=0;i<FL.length;i++){const a=FL[i];if(a.n<=0)continue;
+    for(let j=i+1;j<FL.length;j++){const b=FL[j];if(b.n<=0||a.owner===b.owner||!hostile(a.owner,b.owner)||((a.owner==='p'||b.owner==='p')&&T('stealth')))continue;
+      if(Math.abs(a.x-b.x)>40||Math.abs(a.y-b.y)>40)continue;
+      if(Math.hypot(a.x-b.x,a.y-b.y)<9+Math.sqrt(a.n)+Math.sqrt(b.n)){
+        const pa=a.n*a.atk,pb=b.n*b.atk;if(pa>=pb){a.n=(pa-pb)/a.atk;b.n=0}else{b.n=(pb-pa)/b.atk;a.n=0}
+        const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;burst(mx,my,'#ffffff',8,.9);burst(mx,my,col(a.owner),6);burst(mx,my,col(b.owner),6);
+        if(a.owner==='p'||b.owner==='p')tone(300,.08,'square',.02,-150);if(a.n<=0)break}}}
+  for(let i=FL.length-1;i>=0;i--){const f=FL[i];
+    if(f.n<.5){burst(f.x,f.y,col(f.owner),8);FL.splice(i,1);continue}
+    const t=f.to,sp=70*f.spd*dt,dx=t.x-f.x,dy=t.y-f.y,d=Math.hypot(dx,dy);
+    if(d<=t.r+sp){arrive(f);FL.splice(i,1)}else{f.x+=dx/d*sp;f.y+=dy/d*sp;if(Math.random()<.4&&G.parts.length<800)G.parts.push({x:f.x-dx/d*6,y:f.y-dy/d*6,vx:0,vy:0,life:.4,max:.4,c:col(f.owner),s:1.4})}}
+  const meAlive=G.planets.some(p=>p.owner==='p')||G.fleets.some(f=>f.owner==='p');
+  const aiAlive=G.planets.some(p=>isAI(p.owner))||G.fleets.some(f=>isAI(f.owner));
+  if(G.mode==='title'){if(!aiAlive||(G.planets.filter(p=>isAI(p.owner)).length<3&&G.t>200))demo();return}
+  if(!meAlive)return gameOver(false);
+  if(!aiAlive)galaxyCleared();
+}
+
+/* ---------- drawing ---------- */
+function shade(hex,k=.32){const n=parseInt(hex.slice(1),16);const f=v=>Math.round(v*k).toString(16).padStart(2,'0');return'#'+f(n>>16)+f(n>>8&255)+f(n&255)}
+/* ---------- procedural art: planet textures, ship sprites, nebula ---------- */
+const PERM=new Uint8Array(512),RV=new Float32Array(256);
+(()=>{const p=[...Array(256).keys()];for(let i=255;i>0;i--){const j=Math.random()*(i+1)|0;[p[i],p[j]]=[p[j],p[i]]}for(let i=0;i<512;i++)PERM[i]=p[i&255];for(let i=0;i<256;i++)RV[i]=Math.random()})();
+function noise3(x,y,z){const X=Math.floor(x),Y=Math.floor(y),Z=Math.floor(z),fx=x-X,fy=y-Y,fz=z-Z,xi=X&255,yi=Y&255,zi=Z&255;
+  const u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy),w=fz*fz*(3-2*fz);
+  const a=PERM[xi]+yi,b=PERM[xi+1]+yi,aa=PERM[a]+zi,ab=PERM[a+1]+zi,ba=PERM[b]+zi,bb=PERM[b+1]+zi;
+  const x1=RV[PERM[aa]]+u*(RV[PERM[ba]]-RV[PERM[aa]]),x2=RV[PERM[ab]]+u*(RV[PERM[bb]]-RV[PERM[ab]]),x3=RV[PERM[aa+1]]+u*(RV[PERM[ba+1]]-RV[PERM[aa+1]]),x4=RV[PERM[ab+1]]+u*(RV[PERM[bb+1]]-RV[PERM[ab+1]]);
+  const y1=x1+v*(x2-x1),y2=x3+v*(x4-x3);return y1+w*(y2-y1)}
+function fbm3(x,y,z,o){let a=0,amp=.5,f=1,n=0;for(let i=0;i<o;i++){a+=amp*noise3(x*f,y*f,z*f);n+=amp;f*=2.07;amp*=.5}return a/n}
+function ridge3(x,y,z,o){let a=0,amp=.5,f=1,n=0;for(let i=0;i<o;i++){a+=amp*(1-Math.abs(2*noise3(x*f,y*f,z*f)-1));n+=amp;f*=2.1;amp*=.5}return a/n}
+const mixc=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
+const cl01=v=>v<0?0:v>1?1:v;
+const TW=160,TH=80,SZ=112;
+const GAS_PAL=[[[217,185,140],[160,105,62],[245,228,200]],[[120,175,215],[52,96,150],[214,236,248]],[[180,150,215],[100,70,150],[236,222,248]],[[215,140,125],[150,70,58],[246,212,196]],[[150,200,170],[60,120,100],[220,244,230]]];
+function planetKind(p){const d=p.deco[0];return p.type==='gas'?'gas':p.type==='ice'?'ice':p.type==='lava'?'lava':d<.45?'terran':d<.75?'desert':'barren'}
+function genTex(p){
+  const k=planetKind(p),d=p.deco,T=new Float32Array(TW*TH*4),ox=p.id*7.13+d[1]*40,oy=d[2]*40+3,oz=d[3]*40+7,sc=k==='gas'?1.1:1.7,pal=GAS_PAL[Math.floor(d[4]*GAS_PAL.length)];
+  const spotLon=d[7]*Math.PI*2,spotLat=(d[6]-.5)*.9;
+  for(let j=0;j<TH;j++){const lat=(j+.5)/TH*Math.PI-Math.PI/2,cy=Math.sin(lat),cc=Math.cos(lat);
+    for(let i=0;i<TW;i++){const lon=i/TW*Math.PI*2,cx=cc*Math.cos(lon),cz=cc*Math.sin(lon),X=cx*sc+ox,Y=cy*sc+oy,Z=cz*sc+oz;let c,e=0;
+      if(k==='terran'){const h=fbm3(X,Y,Z,5);
+        if(h<.52)c=mixc([8,24,70],[34,100,170],Math.pow(h/.52,2.2));
+        else{const t=(h-.52)/.48;c=t<.12?mixc([200,186,140],[70,130,60],t/.12):t<.5?mixc([70,130,60],[110,96,64],(t-.12)/.38):mixc([110,96,64],[215,215,215],cl01((t-.5)*2.2))}
+        if(Math.abs(cy)>.84-(h-.5)*.5)c=mixc(c,[236,242,252],.92);
+        const cl=cl01((fbm3(X*1.7+40,Y*2.6,Z*1.7,4)-.5)*3.2);c=mixc(c,[248,250,255],cl*.85)}
+      else if(k==='desert'){const h=fbm3(X,Y,Z,5),r=ridge3(X*2,Y*2,Z*2,3);c=mixc([140,70,36],[236,176,104],h);c=mixc(c,[90,44,26],cl01((r-.72)*3)*.6);
+        if(Math.abs(cy)>.9-(h-.5)*.3)c=mixc(c,[240,230,215],.8)}
+      else if(k==='barren'){const h=fbm3(X,Y,Z,5),r=ridge3(X*2.4,Y*2.4,Z*2.4,4);c=mixc([62,58,58],[170,160,150],h);c=mixc(c,[40,36,38],cl01((r-.8)*4)*.7);c=mixc(c,[200,195,188],cl01((r-.9)*8)*.4)}
+      else if(k==='gas'){const w=fbm3(X*.9,Y*3.2,Z*.9,4),b=Math.sin((cy*6.5+w*3.2+d[5]*6)*Math.PI*.5)*.5+.5,b2=fbm3(X*2.2,Y*9,Z*2.2,3);
+        c=mixc(pal[0],pal[1],b);c=mixc(c,pal[2],cl01((b2-.52)*3)*.65);
+        if(d[6]>.45){let dl=lon-spotLon;dl=Math.atan2(Math.sin(dl),Math.cos(dl));const q=(dl*dl)/.09+((lat-spotLat)**2)/.025;if(q<1)c=mixc(c,mixc(pal[1],[200,90,60],.5),(1-q)*.85)}}
+      else if(k==='ice'){const h=fbm3(X,Y,Z,5),r=ridge3(X*2.6,Y*2.6,Z*2.6,4);c=mixc([150,186,214],[242,248,255],h);c=mixc(c,[50,100,160],cl01((r-.84)*6)*.8)}
+      else{const h=fbm3(X,Y,Z,5),r=ridge3(X*2.2,Y*2.2,Z*2.2,4),g=cl01((r-.76)*5);c=mixc([28,20,22],[80,54,46],h);c=mixc(c,[255,130,36],g);if(g>.7)c=mixc(c,[255,232,140],(g-.7)*3.3);e=g}
+      const o=(j*TW+i)*4;T[o]=c[0];T[o+1]=c[1];T[o+2]=c[2];T[o+3]=e}}
+  return{T,kind:k}}
+let LUT=null;
+function makeLut(){const n=SZ*SZ,U=new Float32Array(n),V=new Int32Array(n),S=new Float32Array(n),A=new Float32Array(n),Rm=new Float32Array(n);
+  const L=[-.58,-.52,.62],ll=Math.hypot(...L);L[0]/=ll;L[1]/=ll;L[2]/=ll;
+  for(let y=0;y<SZ;y++)for(let x=0;x<SZ;x++){const k=y*SZ+x,nx=(x+.5)/SZ*2-1,ny=(y+.5)/SZ*2-1,d2=nx*nx+ny*ny,d=Math.sqrt(d2);
+    A[k]=cl01((1-d)*SZ*.5+.5);if(A[k]<=0)continue;const nz=Math.sqrt(Math.max(0,1-d2));
+    U[k]=(Math.atan2(nx,nz)/(Math.PI*2)+.5)*TW;V[k]=Math.min(TH-1,Math.max(0,Math.floor((Math.asin(Math.max(-1,Math.min(1,ny)))/Math.PI+.5)*TH)));
+    const l=nx*L[0]+ny*L[1]+nz*L[2];S[k]=Math.max(.13,Math.min(1.15,l*1.05+.28));Rm[k]=Math.pow(d,6)}
+  LUT={U,V,S,A,Rm}}
+function makeArt(p){if(typeof document==='undefined'||!document.createElement)return null;if(!LUT)makeLut();
+  const cv=document.createElement('canvas');cv.width=cv.height=SZ;const g=cv.getContext('2d');if(!g||!g.createImageData)return null;
+  const t=genTex(p),A={cv,g,img:g.createImageData(SZ,SZ),T:t.T,kind:t.kind,spd:(p.deco[8]<.5?-1:1)*(1.2+p.deco[9]*2.2),rot:p.deco[5]*TW,ready:true,
+    atm:t.kind==='terran'?[120,180,255]:t.kind==='ice'?[180,220,255]:t.kind==='gas'?GAS_PAL[Math.floor(p.deco[4]*GAS_PAL.length)][2]:t.kind==='lava'?[255,120,60]:null};
+  if(!A.img||!A.img.data)return null;paintArt(A);return A}
+function paintArt(A){const {U,V,S,A:Al,Rm}=LUT,D=A.img.data,T=A.T,rot=A.rot,at=A.atm;
+  for(let k=0;k<SZ*SZ;k++){const o=k*4,a=Al[k];if(a<=0){D[o+3]=0;continue}
+    let u=(U[k]+rot)%TW;if(u<0)u+=TW;const ti=(V[k]*TW+(u|0))*4,s=S[k],e=T[ti+3],m=Math.max(s,e*.95);
+    let r=T[ti]*m,g=T[ti+1]*m,b=T[ti+2]*m;
+    if(at){const rr=Rm[k]*Math.min(1,s*1.6+.15)*.75;r+=(at[0]-r)*rr;g+=(at[1]-g)*rr;b+=(at[2]-b)*rr}
+    D[o]=r;D[o+1]=g;D[o+2]=b;D[o+3]=a*255}
+  A.g.putImageData(A.img,0,0)}
+let artI=0;
+function artTick(now){if(!G.planets.length||typeof document==='undefined')return;
+  for(const p of G.planets)if(p.art===undefined){p.art=makeArt(p);break}
+  const n=G.planets.length,a=toWorld(0,0),b=toWorld(W,H);
+  for(let k=0,done=0;k<n&&done<5;k++){artI=(artI+1)%n;const p=G.planets[artI];if(!p.art||p.x<a.x-60||p.x>b.x+60||p.y<a.y-60||p.y>b.y+60)continue;
+    p.art.rot=p.deco[5]*TW+now/1000*p.art.spd;paintArt(p.art);done++}}
+// ship sprites: one hull design per faction, nose pointing +x
+const HULL={
+  p:[[1,0],[.25,.2],[-.25,.68],[-.55,.62],[-.38,.22],[-.62,.16],[-.62,-.16],[-.38,-.22],[-.55,-.62],[-.25,-.68],[.25,-.2]],
+  raid:[[1,0],[.3,.14],[.12,.6],[-.08,.28],[-.52,.72],[-.4,.16],[-.72,0],[-.4,-.16],[-.52,-.72],[-.08,-.28],[.12,-.6],[.3,-.14]],
+  hive:[[.95,.14],[.62,.06],[.72,.36],[.3,.52],[-.3,.5],[-.72,.3],[-.82,0],[-.72,-.3],[-.3,-.5],[.3,-.52],[.72,-.36],[.62,-.06],[.95,-.14]],
+  bastion:[[.82,.28],[.82,-.28],[.52,-.56],[-.62,-.56],[-.78,-.3],[-.78,.3],[-.62,.56],[.52,.56]],
+  verd:[[1,0],[.4,.42],[-.2,.74],[-.62,.6],[-.22,.34],[-.42,0],[-.22,-.34],[-.62,-.6],[-.2,-.74],[.4,-.42]],
+  iron:[[1,0],[.5,.34],[-.7,.66],[-.6,.2],[-.82,0],[-.6,-.2],[-.7,-.66],[.5,-.34]],
+  void:[[1,0],[.12,.28],[0,.82],[-.2,.24],[-.82,0],[-.2,-.24],[0,-.82],[.12,-.28]],
+  rebel:[[1,0],[-.42,.56],[-.22,0],[-.42,-.56]],
+};
+const SPR={};
+function lighten(hex,k){const n=parseInt(hex.slice(1),16),f=v=>Math.round(v+(255-v)*k).toString(16).padStart(2,'0');return'#'+f(n>>16)+f(n>>8&255)+f(n&255)}
+function shipSprite(k){if(SPR[k]!==undefined)return SPR[k];if(typeof document==='undefined'){SPR[k]=null;return null}
+  const S=64,c=document.createElement('canvas');c.width=c.height=S;const g=c.getContext('2d');if(!g||!g.createLinearGradient){SPR[k]=null;return null}
+  const R=S*.36,c0=col(k),H=HULL[k]||HULL.rebel;g.translate(S/2,S/2);
+  const eg=g.createRadialGradient(-R*.72,0,0,-R*.72,0,R*.7);eg.addColorStop(0,'rgba(255,255,255,.95)');eg.addColorStop(.25,c0+'dd');eg.addColorStop(1,c0+'00');g.fillStyle=eg;g.fillRect(-R*1.5,-R*.7,R*1.5,R*1.4);
+  g.beginPath();H.forEach(([x,y],i)=>i?g.lineTo(x*R,y*R):g.moveTo(x*R,y*R));g.closePath();
+  const hg=g.createLinearGradient(0,-R*.8,0,R*.8);hg.addColorStop(0,lighten(c0,.55));hg.addColorStop(.45,c0);hg.addColorStop(1,shade(c0,.4));g.fillStyle=hg;g.fill();
+  g.lineWidth=1.6;g.strokeStyle=shade(c0,.28);g.stroke();
+  g.save();g.clip();g.strokeStyle='rgba(255,255,255,.28)';g.lineWidth=1.2;g.beginPath();g.moveTo(-R*.6,0);g.lineTo(R*.7,0);g.moveTo(-R*.1,-R*.5);g.lineTo(-R*.1,R*.5);g.stroke();g.restore();
+  g.fillStyle='rgba(255,255,255,.9)';g.beginPath();g.ellipse(R*.38,0,R*.15,R*.07,0,0,7);g.fill();
+  SPR[k]=c;return c}
+function drawNebula(s){const w=Math.ceil(W/4),h=Math.ceil(H/4),nc=document.createElement('canvas');nc.width=w;nc.height=h;const g=nc.getContext('2d');if(!g||!g.createImageData)return;
+  const im=g.createImageData(w,h);if(!im||!im.data)return;const D=im.data,z0=Math.random()*50,hues=shuffle([[90,40,160],[20,110,140],[150,40,90],[40,70,160],[160,90,40]]).slice(0,2);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const n=fbm3(x*.018,y*.018,z0,5),m=Math.pow(cl01((n-.42)*2.4),1.6),t=fbm3(x*.01+20,y*.01,z0+9,3),c=mixc(hues[0],hues[1],cl01((t-.35)*2.5)),o=(y*w+x)*4;
+    D[o]=c[0];D[o+1]=c[1];D[o+2]=c[2];D[o+3]=m*120}
+  g.putImageData(im,0,0);s.imageSmoothingEnabled=true;s.drawImage(nc,0,0,W,H)}
+
+function drawPlanet(p,tt,z){
+  const {x,y,r}=p,c=col(p.owner),d=p.deco;
+  const A=p.art,ringed=A&&A.kind==='gas'&&d[1]>.4;
+  if(A&&p.owner!=='n'){const h=ctx.createRadialGradient(x,y,r*.92,x,y,r*1.55);h.addColorStop(0,c+'88');h.addColorStop(.35,c+'2c');h.addColorStop(1,c+'00');ctx.fillStyle=h;ctx.beginPath();ctx.arc(x,y,r*1.55,0,7);ctx.fill()}
+  const ring=(a0,a1)=>{ctx.save();ctx.translate(x,y);ctx.rotate(-.35+d[2]*.3);ctx.lineCap='butt';[[1.75,r*.16,'rgba(225,205,170,.45)'],[1.5,r*.1,'rgba(200,180,150,.35)']].forEach(([k,w,s])=>{ctx.strokeStyle=s;ctx.lineWidth=w;ctx.beginPath();ctx.ellipse(0,0,r*k,r*k*.26,0,a0,a1);ctx.stroke()});ctx.restore()};
+  if(ringed)ring(Math.PI,Math.PI*2);
+  if(!A&&p.type==='ice'){ctx.save();ctx.translate(x,y);ctx.rotate(-.35);ctx.strokeStyle=c+'88';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,0,r*1.55,r*.38,0,Math.PI,Math.PI*2);ctx.stroke();ctx.restore()}
+  if(p.trait){ctx.save();ctx.translate(x,y);ctx.rotate(-tt*.3);ctx.strokeStyle='#ffe08a';ctx.globalAlpha=.55;ctx.lineWidth=1.5;ctx.setLineDash([2,4]);ctx.beginPath();ctx.arc(0,0,r+18,0,7);ctx.stroke();ctx.restore()}
+  if(A){ctx.drawImage(A.cv,x-r,y-r,2*r,2*r);
+    if(p.owner==='n'){ctx.fillStyle='rgba(8,12,34,.32)';ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();ctx.strokeStyle='rgba(160,170,210,.35)';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(x,y,r+1.5,0,7);ctx.stroke()}
+    else{ctx.strokeStyle=c;ctx.globalAlpha=.9;ctx.lineWidth=2.2;ctx.beginPath();ctx.arc(x,y,r+1.8,0,7);ctx.stroke();ctx.globalAlpha=1}
+    if(ringed)ring(0,Math.PI)}
+  else{
+  const b=ctx.createRadialGradient(x-r*.4,y-r*.4,r*.1,x,y,r);b.addColorStop(0,p.owner==='n'?'#a9b0cf':'#ffffff');b.addColorStop(.3,c);b.addColorStop(1,shade(c,.36));
+  ctx.fillStyle=b;ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();
+  ctx.save();ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.clip();
+  if(p.type==='gas'){for(let i=0;i<4;i++){ctx.fillStyle=i%2?'rgba(255,255,255,.13)':'rgba(0,0,30,.18)';ctx.fillRect(x-r,y+(d[i]-.5)*1.7*r,2*r,r*(.12+d[i+4]*.14))}}
+  else if(p.type==='rock'){for(let i=0;i<4;i++){ctx.fillStyle='rgba(0,0,20,.25)';ctx.beginPath();ctx.arc(x+(d[i]-.5)*1.3*r,y+(d[i+4]-.5)*1.3*r,r*(.1+d[i+2]*.14),0,7);ctx.fill()}}
+  else if(p.type==='lava'){ctx.strokeStyle=`rgba(255,170,90,${.35+.2*Math.sin(tt*3+d[0]*6)})`;ctx.lineWidth=1.4;ctx.beginPath();for(let i=0;i<3;i++){ctx.moveTo(x+(d[i]-.5)*1.6*r,y+(d[i+3]-.5)*1.6*r);ctx.lineTo(x+(d[i+5]-.5)*1.4*r,y+(d[i+6]-.5)*1.4*r)}ctx.stroke()}
+  else{ctx.fillStyle='rgba(255,255,255,.35)';ctx.beginPath();ctx.ellipse(x,y-r*.85,r*.7,r*.3,0,0,7);ctx.fill()}
+  const sh=ctx.createRadialGradient(x-r*.5,y-r*.5,r*.4,x-r*.2,y-r*.2,r*1.6);sh.addColorStop(0,'rgba(0,0,0,0)');sh.addColorStop(1,'rgba(2,4,20,.6)');ctx.fillStyle=sh;ctx.fillRect(x-r,y-r,2*r,2*r);ctx.restore();}
+  if(!A&&p.type==='ice'){ctx.save();ctx.translate(x,y);ctx.rotate(-.35);ctx.strokeStyle=c+'aa';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,0,r*1.55,r*.38,0,0,Math.PI);ctx.stroke();ctx.restore()}
+  if(p.def>0||p.fx.wall>0){ctx.save();ctx.translate(x,y);ctx.rotate(tt*.25);ctx.strokeStyle=p.fx.wall>0?'#ffffff':c+'99';ctx.lineWidth=p.fx.wall>0?2.5:1+p.def*.4;ctx.beginPath();for(let i=0;i<=6;i++){const a=i*Math.PI/3;ctx.lineTo(Math.cos(a)*(r+6),Math.sin(a)*(r+6))}ctx.stroke();ctx.restore()}
+  if(p.relay){const k=(tt*.7+d[0])%1;ctx.strokeStyle=c;ctx.globalAlpha=(1-k)*.5;ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(x,y,r+4+k*24,0,7);ctx.stroke();ctx.globalAlpha=1}
+  if(p.turret&&p.owner!=='n'){ctx.strokeStyle=c+'22';ctx.setLineDash([3,6]);ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,y,160,0,7);ctx.stroke();ctx.setLineDash([])}
+  if(p.laser){ctx.strokeStyle=c;ctx.lineWidth=1.5+Math.random();ctx.globalAlpha=.85;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(p.laser.x,p.laser.y);ctx.stroke();ctx.globalAlpha=1}
+  if(p.fx.rally>0){ctx.strokeStyle='#7ff0b0';ctx.globalAlpha=.6+.3*Math.sin(tt*8);ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,r+11,0,7);ctx.stroke();ctx.globalAlpha=1}
+  if(p.owner!=='n'&&p.sup>0){ctx.save();ctx.strokeStyle=p.sup===2?'#ff5c8a':'#ffb347';ctx.lineWidth=2;ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(x,y,r+4,0,7);ctx.stroke();ctx.restore()}
+  if(isHold(p)){ctx.strokeStyle=c;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,r+13,0,7);ctx.stroke();ctx.beginPath();ctx.arc(x,y,r+17,0,7);ctx.stroke()}
+  if(p.depot&&p.owner!=='n'){const s=Math.max(6,6/z);ctx.fillStyle=c;ctx.fillRect(x-r*.9-s,y+r*.5,s*1.6,s*1.6);ctx.strokeStyle='#0b102e';ctx.lineWidth=1;ctx.strokeRect(x-r*.9-s,y+r*.5,s*1.6,s*1.6)}
+  if(p.build){ctx.strokeStyle='#ffe08a';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,r+3,-Math.PI/2,-Math.PI/2+Math.PI*2*p.build.t/p.build.dur);ctx.stroke()}
+  if(p.flash>0){ctx.strokeStyle=`rgba(255,255,255,${p.flash})`;ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,r+2,0,7);ctx.stroke()}
+  if(G.sel.has(p)){ctx.save();ctx.setLineDash([5,4]);ctx.lineDashOffset=tt*20;ctx.strokeStyle='#7fd6ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,r+9,0,7);ctx.stroke();ctx.restore()}
+  if(G.focus===(p.base||p)){ctx.strokeStyle='#ffe08a';ctx.lineWidth=1.5/z+.5;ctx.beginPath();ctx.arc(x,y,r+15,0,7);ctx.stroke()}
+  if(p.capital){const s=Math.max(9,9/z),cy=y-r-s*1.4;ctx.fillStyle=c;ctx.beginPath();ctx.moveTo(x-s,cy+s*.6);ctx.lineTo(x-s,cy-s*.3);ctx.lineTo(x-s*.5,cy+s*.1);ctx.lineTo(x,cy-s*.6);ctx.lineTo(x+s*.5,cy+s*.1);ctx.lineTo(x+s,cy-s*.3);ctx.lineTo(x+s,cy+s*.6);ctx.closePath();ctx.fill()}
+  const fs=Math.max(r*.8,12/z);ctx.font=`700 ${fs}px "Chakra Petch",system-ui,sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+  const st=p.ghost?'?':Math.floor(p.ships);ctx.lineJoin='round';ctx.lineWidth=Math.max(3,3/z);ctx.strokeStyle='rgba(4,7,24,.8)';ctx.strokeText(st,x,y+1);ctx.fillStyle='#fff';ctx.fillText(st,x,y+1);
+  if(z>.32){const ls=Math.max(9/z,10);ctx.font=`700 ${ls}px "Zen Kaku Gothic New",system-ui,sans-serif`;ctx.fillStyle=p.owner==='n'?'#8d97c7':c;ctx.fillText(p.name,x,y+r+ls*1.2);
+    ctx.font=`${ls*.75}px system-ui,sans-serif`;ctx.fillStyle='#ffe08a';ctx.globalAlpha=.8;ctx.fillText('◆'.repeat(p.ind),x,y+r+ls*2.3);ctx.globalAlpha=1;
+    if(p.owner!=='n'&&p.sup===2){ctx.font=`900 ${ls*.85}px "Zen Kaku Gothic New",system-ui,sans-serif`;ctx.fillStyle='#ff5c8a';ctx.fillText('補給途絶',x,y+r+ls*3.3)}
+    if(p.trait){const bx=x-r*.9,by=y-r*.9,s=Math.max(9,9/z);ctx.fillStyle='#0b102e';ctx.strokeStyle='#ffe08a';ctx.lineWidth=1.5/z+.5;ctx.beginPath();ctx.arc(bx,by,s,0,7);ctx.fill();ctx.stroke();ctx.fillStyle='#ffe08a';ctx.font=`900 ${s*1.05}px "Zen Kaku Gothic New",system-ui,sans-serif`;ctx.fillText(TRAITS[p.trait].k,bx,by+.5)}
+  }
+}
+function label(x,y,txt,c,z){ctx.font=`700 ${12/z}px "Chakra Petch","Zen Kaku Gothic New",system-ui,sans-serif`;const w=ctx.measureText(txt).width+14/z;ctx.fillStyle='#0b1132';ctx.strokeStyle=c;ctx.lineWidth=1.5/z;
+  ctx.beginPath();ctx.rect(x-w/2,y-11/z,w,22/z);ctx.fill();ctx.stroke();ctx.fillStyle=c;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,x,y+1/z)}
+function draw(now){
+  const tt=now/1000,z=G.cam.z;ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(bg)ctx.drawImage(bg,0,0,W,H);
+  if(!G.planets.length)return;
+  ctx.setTransform(dpr*z,0,0,dpr*z,dpr*(W/2-G.cam.x*z),dpr*(H/2-G.cam.y*z));
+  for(const p of G.planets){if(p.owner==='n'||!vis(p))continue;const R=G.range*.62,g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,R),c=col(p.owner);g.addColorStop(0,c+'2a');g.addColorStop(1,c+'00');ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,R,0,7);ctx.fill()}
+  ctx.strokeStyle='rgba(255,255,255,.1)';ctx.lineWidth=1/z;ctx.strokeRect(0,0,G.WW,G.WH);
+  for(const [a,b] of G.lanes){if(!seen(a)||!seen(b))continue;const same=a.owner===b.owner&&a.owner!=='n';ctx.strokeStyle=same?col(a.owner)+'55':'rgba(140,150,200,.12)';ctx.lineWidth=same?1.6:1;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()}
+  for(const op of G.ops){const P=op.path;if(!P||P.length<2)continue;ctx.strokeStyle='rgba(127,214,255,.28)';ctx.lineWidth=8/z+6;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();P.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();ctx.lineCap='butt';
+    const a=P[P.length-2],b=op.target,ang=Math.atan2(b.y-a.y,b.x-a.x),hx=b.x-Math.cos(ang)*(b.r+6),hy=b.y-Math.sin(ang)*(b.r+6),s=16/z+10;ctx.fillStyle='rgba(127,214,255,.7)';ctx.beginPath();ctx.moveTo(hx,hy);ctx.lineTo(hx-Math.cos(ang-.45)*s,hy-Math.sin(ang-.45)*s);ctx.lineTo(hx-Math.cos(ang+.45)*s,hy-Math.sin(ang+.45)*s);ctx.closePath();ctx.fill()}
+  for(const p of G.sel){ctx.strokeStyle='rgba(127,214,255,.22)';ctx.lineWidth=1/z;ctx.setLineDash([6/z,6/z]);ctx.beginPath();ctx.arc(p.x,p.y,rangeOf(p),0,7);ctx.stroke();ctx.setLineDash([])}
+  const pw=G.pointer&&toWorld(G.pointer.x,G.pointer.y),hp=pw&&hit(pw);
+  if(G.mode==='play'&&G.sel.size&&pw&&((G.drag&&G.drag.moved&&G.drag.fromOwn)||(hp&&!G.drag))){
+    const tx=hp?hp.x:pw.x,ty=hp?hp.y:pw.y;ctx.save();ctx.setLineDash([8/z,7/z]);ctx.lineDashOffset=-tt*30/z;ctx.lineWidth=2/z;
+    for(const p of G.sel){if(p===hp)continue;ctx.strokeStyle=!hp||inRange(p,hp)?'rgba(127,214,255,.85)':'rgba(255,92,138,.45)';ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(tx,ty);ctx.stroke()}ctx.restore();
+    if(hp&&!G.sel.has(hp)){const ready=[...G.sel].filter(p=>inRange(p,hp)),n=ready.reduce((a,p)=>a+Math.floor(p.ships*G.ratio),0);
+      const cz=isAI(hp.owner)&&G.rel[hp.owner]?.cease>0;
+      label(hp.x,hp.y-hp.r-26/z,ready.length?(cz?`停戦破棄 · 出撃 ${n}`:`出撃 ${n}`):'射程外',ready.length?(cz?'#ffb347':'#7fd6ff'):'#ff5c8a',z)}
+  }
+  for(const p of G.planets){if(!seen(p))continue;if(vis(p)){drawPlanet(p,tt,z);continue}
+    const g=Object.assign(Object.create(p),G.mem[p.id],{ghost:true,base:p,build:null,flash:0,laser:null,fx:{}});drawPlanet(g,tt,z);
+    ctx.fillStyle='rgba(6,10,31,.5)';ctx.beginPath();ctx.arc(p.x,p.y,p.r+20,0,7);ctx.fill()}
+  for(const k in G.fac){const o=G.fac[k].off;if(!o||o.target.owner!=='p')continue;
+    if(!vis(o.stage)){label(o.target.x,o.target.y+o.target.r+40/z,`敵の大攻勢 ${Math.ceil(o.t)}秒`,'#ff5c8a',z);continue}
+    const a=o.stage,b=o.target,ang=Math.atan2(b.y-a.y,b.x-a.x);ctx.save();ctx.strokeStyle=col(k);ctx.globalAlpha=.55+.3*Math.sin(tt*6);ctx.lineWidth=5/z+3;ctx.setLineDash([14/z,8/z]);ctx.lineDashOffset=-tt*40/z;
+    ctx.beginPath();ctx.moveTo(a.x+Math.cos(ang)*a.r,a.y+Math.sin(ang)*a.r);ctx.lineTo(b.x-Math.cos(ang)*(b.r+8),b.y-Math.sin(ang)*(b.r+8));ctx.stroke();ctx.restore();
+    label((a.x+b.x)/2,(a.y+b.y)/2,`大攻勢 ${Math.ceil(o.t)}秒`,'#ff5c8a',z)}
+  for(const op of G.ops)label(op.target.x,op.target.y-op.target.r-(op.target.capital?44:30)/z,`作戦${op.id} ${op.status==='攻撃中'?'攻撃中':op.status==='経路なし'?'経路なし':'準備'+Math.round(op.ready*100)+'%'+(op.info&&op.info.est?'（推定）':'')}`,'#7fd6ff',z);
+  for(const q of G.parts){ctx.globalAlpha=Math.max(0,q.life/q.max);ctx.fillStyle=q.c;ctx.fillRect(q.x-q.s/2,q.y-q.s/2,q.s,q.s)}ctx.globalAlpha=1;
+  for(const f of G.fleets){if(!visF(f))continue;
+    const a=Math.atan2(f.to.y-f.y,f.to.x-f.x),c=col(f.owner),m=Math.min(14,Math.ceil(f.n)),sc=Math.max(1,.8/z);ctx.fillStyle=c;
+    if(f.owner==='p'&&z>.3){ctx.strokeStyle=c+'40';ctx.lineWidth=1/z;ctx.beginPath();ctx.moveTo(f.x,f.y);ctx.lineTo(f.to.x,f.to.y);ctx.stroke()}
+    const spr=shipSprite(f.owner),ca=Math.cos(a),sa=Math.sin(a);
+    if(spr){ctx.globalCompositeOperation='lighter';const L=(18+Math.min(26,f.n*.5))*sc,tg=ctx.createLinearGradient(f.x,f.y,f.x-ca*L,f.y-sa*L);tg.addColorStop(0,c+'88');tg.addColorStop(1,c+'00');ctx.strokeStyle=tg;ctx.lineWidth=(2+Math.min(6,f.n*.12))*sc;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(f.x-ca*4*sc,f.y-sa*4*sc);ctx.lineTo(f.x-ca*L,f.y-sa*L);ctx.stroke();ctx.lineCap='butt';ctx.globalCompositeOperation='source-over'}
+    for(let i=0;i<m;i++){const ang=f.seed+i*2.39996,rad=i?Math.sqrt(i)*4.6*sc:0,flag=!i&&f.n>=30;ctx.save();ctx.translate(f.x+Math.cos(ang)*rad,f.y+Math.sin(ang)*rad);ctx.rotate(a);ctx.scale(sc,sc);
+      if(spr){const q=flag?22:13;ctx.drawImage(spr,-q/2,-q/2,q,q)}
+      else{ctx.beginPath();ctx.moveTo(5,0);ctx.lineTo(-3,2.8);ctx.lineTo(-1.6,0);ctx.lineTo(-3,-2.8);ctx.closePath();ctx.fill()}ctx.restore()}
+    ctx.font=`700 ${Math.max(11,11/z)}px "Chakra Petch","Zen Kaku Gothic New",system-ui,sans-serif`;ctx.textAlign='left';ctx.textBaseline='middle';
+    if(f.n>=3)ctx.fillText(Math.floor(f.n)+(f.buff?' '+f.buff:''),f.x+12*sc,f.y-10*sc);
+  }
+  for(const e of G.fx){const k=e.t/1.4;ctx.globalAlpha=Math.max(0,1-k);
+    if(e.glow){ctx.globalCompositeOperation='lighter';const gr=ctx.createRadialGradient(e.x,e.y,0,e.x,e.y,e.r*(.5+k*.8));gr.addColorStop(0,'rgba(255,255,255,.9)');gr.addColorStop(.25,e.c+'aa');gr.addColorStop(1,e.c+'00');ctx.fillStyle=gr;ctx.beginPath();ctx.arc(e.x,e.y,e.r*(.5+k*.8),0,7);ctx.fill();ctx.globalCompositeOperation='source-over'}
+    else if(e.beam){ctx.strokeStyle=e.c;ctx.lineWidth=4/z;ctx.beginPath();ctx.moveTo(e.beam[0],e.beam[1]);ctx.lineTo(e.beam[2],e.beam[3]);ctx.stroke()}
+    else if(e.ring){ctx.strokeStyle=e.c;ctx.lineWidth=2/z;ctx.beginPath();ctx.arc(e.x,e.y,e.r+k*60,0,7);ctx.stroke()}
+    else{ctx.font=`700 ${Math.max(14,14/z)}px "Chakra Petch","Zen Kaku Gothic New",system-ui,sans-serif`;ctx.fillStyle=e.c||'#ffe08a';ctx.textAlign='center';ctx.fillText(e.txt,e.x,e.y-34/z-k*30/z)}
+    ctx.globalAlpha=1}
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(G.mode!=='title')drawMinimap();
+  if(G.toast){ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='700 16px "Zen Kaku Gothic New",system-ui,sans-serif';ctx.fillStyle='#ffe08a';ctx.globalAlpha=Math.min(1,G.toast.t);ctx.fillText(G.toast.txt,W/2,46);ctx.globalAlpha=1}
+}
+function mini(){const w=Math.min(170,W*.3),h=w*G.WH/G.WW;return{x:10,y:H-h-10,w,h}}
+function drawMinimap(){const m=mini();ctx.fillStyle='rgba(7,11,34,.82)';ctx.strokeStyle='#27326b';ctx.lineWidth=1;ctx.fillRect(m.x,m.y,m.w,m.h);ctx.strokeRect(m.x,m.y,m.w,m.h);
+  const s=m.w/G.WW;for(const p of G.planets){if(!seen(p))continue;ctx.fillStyle=col(vis(p)?p.owner:G.mem[p.id].owner);ctx.globalAlpha=vis(p)?1:.5;ctx.beginPath();ctx.arc(m.x+p.x*s,m.y+p.y*s,p.capital?3.4:p.owner==='n'?1.6:2.6,0,7);ctx.fill();if(p.trait){ctx.strokeStyle='#ffe08a';ctx.beginPath();ctx.arc(m.x+p.x*s,m.y+p.y*s,4,0,7);ctx.stroke()}}ctx.globalAlpha=1;
+  const a=toWorld(0,0),b=toWorld(W,H),ax=clamp(a.x,0,G.WW),ay=clamp(a.y,0,G.WH);ctx.strokeStyle='#ffe08a';ctx.strokeRect(m.x+ax*s,m.y+ay*s,(clamp(b.x,0,G.WW)-ax)*s,(clamp(b.y,0,G.WH)-ay)*s)}
+
+/* ---------- input ---------- */
+function hit(w){let b=null,bd=1e9;for(const p of G.planets){if(!seen(p))continue;const d=Math.hypot(p.x-w.x,p.y-w.y);if(d<p.r+16/G.cam.z&&d<bd){bd=d;b=p}}return b}
+const ptrs=new Map();let pinch=null;
+function spos(e){const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+function inMini(p){const m=mini();return p.x>=m.x&&p.x<=m.x+m.w&&p.y>=m.y&&p.y<=m.y+m.h}
+function miniJump(p){const m=mini();G.cam.x=(p.x-m.x)/m.w*G.WW;G.cam.y=(p.y-m.y)/m.h*G.WH;clampCam()}
+cv.addEventListener('pointerdown',e=>{
+  if(G.mode!=='play')return;cv.setPointerCapture(e.pointerId);const p=spos(e);ptrs.set(e.pointerId,p);G.pointer=p;
+  if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch={d0:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),z0:G.cam.z,w:toWorld((a.x+b.x)/2,(a.y+b.y)/2)};G.drag=null;return}
+  if(inMini(p)){G.drag={mini:true};miniJump(p);return}
+  const h=hit(toWorld(p.x,p.y));
+  G.drag={x:p.x,y:p.y,lx:p.x,ly:p.y,moved:false,h,had:!!(h&&G.sel.has(h)),fromOwn:!!(h&&h.owner==='p'),pan:!h};
+  if(h&&h.owner==='p')G.sel.add(h);
+});
+cv.addEventListener('pointermove',e=>{
+  const p=spos(e);G.pointer=p;if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,p);
+  if(pinch&&ptrs.size===2){const [a,b]=[...ptrs.values()];G.cam.z=clamp(pinch.z0*Math.hypot(a.x-b.x,a.y-b.y)/pinch.d0,zMin(),zMax);
+    const m={x:(a.x+b.x)/2,y:(a.y+b.y)/2};G.cam.x=pinch.w.x-(m.x-W/2)/G.cam.z;G.cam.y=pinch.w.y-(m.y-H/2)/G.cam.z;clampCam();return}
+  const d=G.drag;if(!d)return;if(d.mini){miniJump(p);return}
+  if(!d.moved&&Math.hypot(p.x-d.x,p.y-d.y)>8)d.moved=true;
+  if(d.pan&&d.moved){G.cam.x-=(p.x-d.lx)/G.cam.z;G.cam.y-=(p.y-d.ly)/G.cam.z;clampCam()}
+  if(d.fromOwn&&d.moved){const h=hit(toWorld(p.x,p.y));if(h&&h.owner==='p'&&!G.sel.has(h)){G.sel.add(h);tone(880,.04,'sine',.02)}}
+  d.lx=p.x;d.ly=p.y;
+});
+cv.addEventListener('pointerup',e=>{
+  ptrs.delete(e.pointerId);if(pinch){if(ptrs.size<2)pinch=null;G.drag=null;return}
+  const d=G.drag;G.drag=null;if(!d||d.mini||G.mode!=='play')return;
+  const p=spos(e),t=hit(toWorld(p.x,p.y));
+  if(d.pan){if(!d.moved){G.sel.clear();G.focus=null;renderSide(true)}}
+  else if(d.moved){if(d.fromOwn&&t)launch(t);if(d.fromOwn)G.sel.clear()}
+  else if(t){const now=performance.now(),dbl=G.lastTap&&G.lastTap.p===t&&now-G.lastTap.t<380;G.lastTap=dbl?null:{p:t,t:now};G.focus=t;
+    if(dbl)quickAct(t);
+    else if(t.owner==='p'){if(d.had)G.sel.delete(t)}else if(G.sel.size){launch(t);G.sel.clear()}
+    renderSide(true)}
+  if(e.pointerType!=='mouse')G.pointer=null;
+});
+cv.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);pinch=null;G.drag=null});
+cv.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'&&!G.drag)G.pointer=null});
+cv.addEventListener('wheel',e=>{e.preventDefault();if(G.mode!=='play')return;const p=spos(e),w=toWorld(p.x,p.y);G.cam.z=clamp(G.cam.z*Math.exp(-e.deltaY*.0015),zMin(),zMax);
+  G.cam.x=w.x-(p.x-W/2)/G.cam.z;G.cam.y=w.y-(p.y-H/2)/G.cam.z;clampCam()},{passive:false});
+// double-click shortcuts: enemy/neutral → toggle an operation, own → toggle defensive anchor
+function quickAct(t){
+  if(t.owner==='p'){G.sel.delete(t);if(isHold(t)&&!t.hold){G.toast={txt:'全体方針で防衛拠点になっています',t:1.6};return}t.hold=!t.hold;G.fx.push({x:t.x,y:t.y,txt:t.hold?'防衛拠点':'防衛拠点 解除',t:0,c:'#7fd6ff'});tone(t.hold?520:380,.08,'triangle',.03);return}
+  const op=G.ops.find(o=>o.target===t);if(op){G.ops=G.ops.filter(o=>o!==op);news(`作戦${op.id}を中止した`);return}
+  G.sel.clear();newOp(t);
+}
+function launch(t){let sent=0,tried=0;for(const s of G.sel){if(s===t)continue;tried++;if(inRange(s,t)&&send(s,t,s.ships*G.ratio,sent>0))sent++}
+  if(tried&&!sent)G.toast={txt:'射程外：隣の惑星を経由するか、中継塔を建てよう',t:2.2};
+  if(sent&&isAI(t.owner)&&G.rel[t.owner]?.cease>0){G.rel[t.owner].cease=0;G.rel[t.owner].cool=150;for(const k in G.rel)G.rel[k].cool=Math.max(G.rel[k].cool,60);news(`${FACS[t.owner].name}との停戦を破った。諸勢力の信用を失った`,'#ff5c8a')}}
+
+/* ---------- side panel ---------- */
+const POLS={
+  auto:{name:'後方輸送',opts:[['all','全惑星'],['pick','指定のみ'],['off','なし']],desc:{all:'後方は2艦、前線は隣の敵の強さに応じた守備隊だけ残し、残りを毎秒送る。作戦中は作戦の集結地へ、ないときは敵と接する前線へ。届く限り先まで一気に飛ぶ',pick:'惑星ごとに指定した所だけ送る',off:'自動では送らない'}},
+  hold:{name:'防衛拠点',opts:[['pick','指定のみ'],['key','首都・特産'],['front','前線すべて']],desc:{pick:'ダブルクリックした惑星だけ',key:'首都と特産星を自動で防衛拠点にする',front:'前線の惑星をすべて防衛拠点にする（作戦には半分だけ出す）'}},
+  prod:{name:'艦の生産',opts:[['war','増産'],['cap','上限まで'],['civ','民需転換']],desc:{war:'上限を超えても造り続ける（超えた分は維持費）。戦争の山場に',cap:`維持上限に達したら造るのをやめ、その生産力を資金に回す（1艦分 → ${CONV}資金）`,civ:'艦を一切造らず、全惑星の生産力を資金に回す。自動内政は技術費が貯まるまで待つ。技術を取る時期に'}},
+  build:{name:'自動内政',opts:[[true,'オン'],[false,'オフ']],desc:{true:'後方は産業、前線は防衛・砲台、補給が伸びたら補給基地。資金100は残す',false:'予約した建設だけ行う'}},
+};
+let sideSig='';
+function sig(){const p=G.focus;const ops=G.ops.map(o=>o.id+o.status+Math.round(o.ready*20)+o.stance+'s'+(o.stall||0)+(o.info?Math.round(o.info.need)+':'+Math.round(o.info.power):'')).join(),pol=JSON.stringify(G.pol),offs=Object.keys(G.fac).map(k=>G.fac[k].off?k+Math.ceil(G.fac[k].off.t/5):'').join();
+  if(!p)return['none',Math.floor(G.t/2),G.dir?G.dir.kind+Math.floor(G.kills)+G.stats.capt:'',G.coal,ops,pol,offs,Math.floor(G.hegT/3)].join('|');
+  return[p.id,p.owner,Math.floor(p.ships),p.ind,p.def,p.turret,p.relay,p.auto,p.capital,p.build?Math.floor(p.build.t/p.build.dur*20):-1,(p.queue||[]).join(),Math.floor((G.fac.p?.cr||0)/10),p.sup,p.hold,p.depot,ops,pol].join('|')}
+function opBreak(op){const E=op.info;if(!E||!op.front)return'';const r=Math.round;
+  return `<div class="opb"><div><span>目標 ${op.front.name}${op.front!==op.target?'（経由地）':''}</span><b>${E.est?`推定・${E.ago}秒前の情報`:'視界内'}</b></div>
+    <div><span>必要</span><b>${r(E.need*E.m)}</b></div>
+    <div class="sub">（敵 ${r(E.enemy)}${E.est?'?':''} ＋ 到着までの増産 ${r(E.grow)}）× 防御 ${E.df.toFixed(2)}${E.tur?` ＋ 砲台 ${E.tur}`:''}${E.reinf>=1?` ＋ 敵の援軍見込み ${r(E.reinf)}`:''} ＋ 4 → ${r(E.need)}、方針「${STANCE[op.stance].name}」×${E.m}</div>
+    <div><span>集結</span><b>${r(E.power+E.inc)}</b></div>
+    <div class="sub">突入できる惑星 ${E.atk.length}つ${E.pin?`（挟撃ボーナス +${r(E.pin)} 込み）`:''}${E.inc?`・向かっている艦隊 ${r(E.inc)}`:''}${E.trans>=1?`・集結地へ移動中 ${r(E.trans)}`:''}</div>
+    ${E.stallGo>0?`<div class="sub" style="color:#ffe08a">必要数は満たした。集結が伸びなければ ${E.stallGo}秒後に突入</div>`:''}</div>`}
+function polRow(k){const P=POLS[k],v=G.pol[k];return `<div class="pol"><span>${P.name}</span><div class="seg">${P.opts.map(([val,l])=>`<button data-act="pol" data-k="${k}" data-v="${val}" aria-pressed="${v===val}">${l}</button>`).join('')}</div><small>${P.desc[v]}</small></div>`}
+function renderSide(force){
+  const el=$('info');
+  if(G.mode!=='play'){if(force)el.innerHTML='';return}
+  const s=sig();if(!force&&s===sideSig)return;sideSig=s;
+  const p=G.focus,M=Mof('p');
+  if(!p){
+    const over=M.n>M.cap,ais=Object.keys(G.fac).filter(k=>isAI(k)&&G.fac[k].alive),heg=G.planets.filter(q=>q.trait),hh=heg.filter(q=>q.owner==='p').length;
+    const threats=Object.keys(G.fac).filter(k=>G.fac[k].off&&G.fac[k].off.target.owner==='p').map(k=>G.fac[k].off);
+    el.innerHTML=`<p class="hint">ドラッグで出撃・なぞって一斉出撃。<b>敵惑星をダブルクリックで作戦目標</b>、<b>自軍惑星をダブルクリックで防衛拠点</b>。Space で一時停止。<b>別々の惑星から同時に着弾させると挟撃</b>（攻撃 ×1.35）。</p>
+      ${threats.map(o=>`<div class="alert"><b>⚠ 大攻勢 ${Math.ceil(o.t)}秒</b>${FACS[o.stage.owner].name}が${o.stage.name}に集結 → ${o.target.name}。守りを固めるか、${o.stage.name}を先に叩けば頓挫する。<button class="go" data-act="look" data-p="${o.target.id}">表示</button></div>`).join('')}
+      ${TR('clock')?`<div class="alert"><b>⏳ 時限戦役</b> 残り ${Math.max(0,Math.ceil(900-G.t))}秒で統一</div>`:''}
+      <p class="sec">銀河の環境</p><p class="hint" style="font-size:12px"><b style="color:#ffe08a">${RULES[G.rule||'none'].name}</b>：${RULES[G.rule||'none'].desc}</p>
+      ${G.dir?`<div class="alert" style="border-color:#ffe08a"><b style="color:#ffe08a">指令</b> ${dirText(G.dir)}<br><small>報酬：${dirRw(G.dir)}</small>${G.dir.kind==='cap'?` <button class="go" data-act="look" data-p="${G.dir.target.id}">表示</button>${G.ops.some(o=>o.target===G.dir.target)?'':` <button class="go" data-act="dirop">作戦にする</button>`}`:''}</div>`:''}
+      <p class="sec">全体方針</p><div class="pols">${polRow('prod')}${polRow('auto')}${polRow('hold')}${polRow('build')}</div>
+      <p class="sec">作戦 ${G.ops.length}/${opsMax()}</p>
+      ${G.ops.length?`<div class="off-list">${G.ops.map(op=>`<div class="off"><div class="top"><span class="nm">作戦${op.id} → ${op.target.name}</span><span class="chip" style="color:#7fd6ff">${op.status}</span></div><div class="prog"><i style="width:${Math.round(op.ready*100)}%;background:#7fd6ff"></i></div>${opBreak(op)}
+        <div class="st" style="gap:6px"><button class="go" data-act="stance" data-op="${op.id}">方針：${STANCE[op.stance].name}</button><button class="go" data-act="opview" data-op="${op.id}">表示</button><button class="go" data-act="opgo" data-op="${op.id}">今すぐ突入</button><button class="go" data-act="opcancel" data-op="${op.id}">中止</button></div></div>`).join('')}</div>`:'<p class="hint">敵か中立の惑星を<b>ダブルクリック</b>すると作戦目標になり、周りの自軍惑星が自動で艦を集めて攻め進みます。</p>'}
+      <p class="sec">勝利への道</p>
+      <div class="roles"><div><span>制覇：全勢力を倒す</span><b>残り ${ais.length}勢力</b></div>
+        <div><span>覇権：特産星を${hegNeed()}つ支配し${HEG_T}秒守る</span><b style="color:${G.hegT>0?'#ffe08a':'inherit'}">${hh}/${hegNeed()}${G.hegT>0?` · 残り${Math.ceil(HEG_T-G.hegT)}秒`:''}</b></div></div>
+      <p class="sec">維持上限 ${Math.round(M.fleet)} / ${M.fcap} 艦</p><div class="gauge ${M.fleet>M.fcap?'over':''}"><i style="width:${Math.min(100,M.fleet/M.fcap*100)}%"></i></div>
+      <p class="hint" style="font-size:12px">${M.broke?'<b style="color:#ff5c8a">資金切れ：維持費が払えず全惑星の生産が半減中</b>。艦を戦いに使うか、上限を上げよう。':M.fleet>M.fcap?`<b style="color:#ffb347">上限超過：維持費 ${M.up.toFixed(1)}資金/秒</b>。生産と後方輸送は続く。溜めるより使うほうが得。`:'これを超えて艦を持つと、超えた分だけ維持費がかかる。補給基地・首都・造船資源・技術「兵站網」で上がる。'}${G.convR>.05?` <b style="color:var(--heal)">生産の資金転換 +${G.convR.toFixed(1)}/秒</b>`:''}</p>
+      ${M.fleet>M.fcap+1?`<button class="go" data-act="demob">後方の超過分 ${Math.floor(M.fleet-M.fcap)}艦を解役（1艦 → 0.5資金）</button>`:''}
+      <p class="sec">統治 ${M.n} / ${M.cap} 惑星</p><div class="gauge ${over?'over':''}"><i style="width:${Math.min(100,M.n/M.cap*100)}%"></i></div>
+      <p class="hint" style="font-size:12px">${over?`<b style="color:#ff5c8a">上限超過：生産と収入が ${Math.round(M.eff*100)}% に低下中</b>。`:''}上げ方：総督府を建てる（+2）・敵の首都を落とす（+1）・指令の報酬（+1）・技術「統治機構」。遠い惑星を<b>自治領</b>にすれば数に入らない。</p>
+      ${G.coal?'<p class="hint" style="color:#ff5c8a"><b style="color:#ff5c8a">対自軍包囲網</b>：敵勢力が争いをやめ、あなたを狙っています。自軍惑星の比率が3割を下回ると崩れます。</p>':''}
+      <p class="sec">勢力図</p><div class="facs">${Object.keys(G.fac).filter(k=>G.met.has(k)).map(k=>{const pl=G.planets.filter(p=>p.owner===k),sh=Math.round(Mof(k).fleet);
+        return `<div class="fac" style="opacity:${pl.length?1:.35}"><i style="background:${col(k)}"></i><b>${G.fac[k].lord?'<span style="color:#ff5c8a">覇王 </span>':''}${FACS[k].name}${G.rel[k]?.cease>0?' <span style="color:#7ff0b0">停戦</span>':''}</b><span>${pl.length}惑星</span><span>${sh}艦</span></div>`}).join('')}${ais.filter(k=>!G.met.has(k)).length?`<div class="fac"><i style="background:#444a6a"></i><b style="color:var(--mute)">未接触の勢力</b><span>${ais.filter(k=>!G.met.has(k)).length}</span><span>?</span></div>`:''}</div>`;return}
+  if(!vis(p)){const m=G.mem[p.id]||{owner:'n'},c=col(m.owner),op=G.ops.find(o=>o.target===p);
+    el.innerHTML=`<div class="ph"><h3 style="color:${c}">${p.name}</h3><span class="chip" style="color:${c}">${FACS[m.owner].name}?</span><button class="go" data-act="close" style="margin-left:auto">全体へ戻る</button></div>
+    <div class="trait"><b>視界外</b>：宇宙暦${Math.floor(m.t||0)}に見た情報です（艦数 約${Math.floor(m.ships||0)}）。今はわかりません。艦隊を近づけるか、隣の惑星を取ると見えます。</div>
+    ${p.trait?`<div class="trait"><b>${TRAITS[p.trait].name}</b>：${TRAITS[p.trait].desc}</div>`:''}
+    ${op?`<p class="hint">作戦${op.id}の目標（${op.status}）</p>`:`<button class="cta" data-act="optarget" style="font-size:14px;padding:10px;flex:none" ${G.ops.length>=opsMax()?'disabled':''}>攻勢作戦の目標にする</button>`}`;return}
+  const own=p.owner==='p',c=col(p.owner),hold=isHold(p),auto=isAuto(p);
+  let h=`<div class="ph"><h3 style="color:${c}">${p.name}</h3><span class="chip" style="color:${c}">${FACS[p.owner].name}</span>${p.capital?'<span class="chip" style="color:#ffe08a">首都</span>':''}${p.owner!=='n'&&isFront(p)?'<span class="chip" style="color:#ff9a7a">前線</span>':''}<button class="go" data-act="close" style="margin-left:auto">全体へ戻る</button></div>
+  ${p.trait?`<div class="trait"><b>${TRAITS[p.trait].name}</b>：${TRAITS[p.trait].desc}${own?'':'（制圧すると自軍に効果）'}。覇権勝利の対象。</div>`:''}
+  ${p.capital&&!own?'<div class="trait"><b>首都</b>：落とすとその勢力の惑星の約3割が離反して中立になります。</div>':''}`;
+  if(!own){const op=G.ops.find(o=>o.target===p);h+=op?`<p class="hint">作戦${op.id}の目標（${op.status}）　<button class="go" data-act="opgo" data-op="${op.id}">今すぐ突入</button><button class="go" data-act="opcancel" data-op="${op.id}">中止</button></p>`:`<button class="cta" data-act="optarget" style="font-size:14px;padding:10px;flex:none" ${G.ops.length>=opsMax()?'disabled':''}>攻勢作戦の目標にする${G.ops.length>=opsMax()?`（作戦は${opsMax()}つまで）`:'（ダブルクリックでも可）'}</button>`}
+  h+=`<div class="kv"><div><small>艦数</small><b>${Math.floor(p.ships)}${p.owner!=='n'?` / ${capOf(p)}`:''}</b></div><div><small>防御倍率</small><b>×${defOf(p).toFixed(2)}</b></div>
+    <div><small>生産</small><b>${prodOf(p).toFixed(2)}/秒</b></div><div><small>資金収入</small><b>${incOf(p).toFixed(2)}/秒</b></div></div>
+  ${p.owner!=='n'?`<div class="lv">補給：<b style="color:${['#7ff0b0','#ffb347','#ff5c8a'][p.sup]}">${['良好','低下（生産-40%）','途絶（生産-75%・防御-30%・艦が減っていく）'][p.sup]}</b>${p.depot?'<span class="chip" style="color:#ffe08a">補給基地</span>':''}</div>`:''}
+  <div class="lv">産業 ${[1,2,3,4,5].map(i=>`<i class="${i<=p.ind?'on':''}"></i>`).join('')}　防衛 ${[1,2,3,4].map(i=>`<i class="${i<=p.def?'on':''}"></i>`).join('')}
+    ${p.turret?'<span class="chip" style="color:#ffe08a">砲台</span>':''}${p.relay?'<span class="chip" style="color:#ffe08a">中継塔</span>':''}</div>`;
+  if(own){
+    const q=p.queue||[];
+    h+=`<p class="sec">建設（資金 ${Math.floor(G.fac.p.cr)}）　押すと予約に積まれ、順に自動で建つ</p>`;
+    if(p.build||q.length)h+=`<div class="queue">${p.build?`<div class="qi now"><span>${BUILD[p.build.k].name}</span><div class="prog"><i style="width:${p.build.t/p.build.dur*100}%"></i></div></div>`:''}${q.map((k,i)=>`<div class="qi"><span>${i+1}. ${BUILD[k].name}${!p.build&&i===0?' <em>資金待ち '+buildCost(p,k)+'</em>':''}</span><button class="go" data-act="unq" data-i="${i}" aria-label="予約を取り消す">×</button></div>`).join('')}</div>`;
+    h+=`<div class="builds">${Object.keys(BUILD).map(k=>{const B=BUILD[k],ok=canQueue(p,k),cost=buildCost(p,k,qCount(p,k));
+      return `<button class="bb" data-act="build" data-k="${k}" ${!ok?'disabled':''} title="${B.desc}">${B.name}<small>${ok?cost+' 資金':qCount(p,k)||!B.can(p)?'完了・予約済':'予約がいっぱい'}</small></button>`}).join('')}</div>`;
+    h+=`<button class="toggle ${hold?'on':''}" data-act="hold" ${hold&&!p.hold?'disabled':''}><span>防衛拠点${hold&&!p.hold?'（全体方針で指定中）':''}<small>後方輸送で艦を出さず、作戦には半分だけ出す。攻められると隣の惑星が援軍を送る。ダブルクリックでも切替</small></span><span class="sw"></span></button>`;
+    if(!p.capital)h+=`<button class="toggle ${p.auton?'on':''}" data-act="auton"><span>自治領にする<small>統治の数に入らなくなる。艦を造らず、収入は半分。艦の通り道・守りには使える</small></span><span class="sw"></span></button>`;
+    if(G.pol.auto==='pick')h+=`<button class="toggle ${auto?'on':''}" data-act="auto"><span>この惑星から後方輸送<small>前線でないとき、溜まった艦を前線へ自動で送る</small></span><span class="sw"></span></button>`;
+  }
+  el.innerHTML=h;
+}
+// The panel re-renders several times a second, so a native click (down+up on the same node) can be lost.
+// Match press and release by what the button does instead of by DOM node.
+function sideAct(b){
+  if(!b||b.disabled||G.mode!=='play')return;const p=G.focus,a=b.dataset.act;
+  const op=G.ops.find(o=>o.id===+b.dataset.op);
+  if(a==='stance'&&op)op.stance=(op.stance+1)%3;
+  else if(a==='dirop'&&G.dir&&G.dir.kind==='cap')newOp(G.dir.target);
+  else if(a==='opgo'&&op){op.force=true;opTick(op)}
+  else if(a==='opcancel'&&op){G.ops=G.ops.filter(o=>o!==op);news(`作戦${op.id}を中止した`)}
+  else if(a==='opview'&&op){G.cam.x=op.target.x;G.cam.y=op.target.y;clampCam()}
+  else if(a==='look'){const t=G.planets[+b.dataset.p];if(t){G.cam.x=t.x;G.cam.y=t.y;clampCam()}}
+  else if(a==='pol'){const k=b.dataset.k,v=b.dataset.v;G.pol[k]=k==='build'?v==='true':v;refreshM();tone(500,.05,'triangle',.02)}
+  else if(a==='close'){G.focus=null;G.sel.clear()}
+  else if(a==='demob')demob();
+  else if(a==='optarget'&&p&&p.owner!=='p')newOp(p);
+  else if(!p||p.owner!=='p'){}
+  else if(a==='build')enqueue(p,b.dataset.k);
+  else if(a==='unq'){p.queue.splice(+b.dataset.i,1)}
+  else if(a==='hold')p.hold=!p.hold;
+  else if(a==='auto')p.auto=!p.auto;
+  else if(a==='auton'&&!p.capital){p.auton=!p.auton;refreshM()}
+  renderSide(true);
+}
+const actKey=b=>b?['act','k','v','op','i','p'].map(x=>b.dataset[x]||'').join(':'):'';
+let press=null;
+$('info').addEventListener('pointerdown',e=>{if(e.button)return;const b=e.target.closest('[data-act]');press=b?{key:actKey(b),x:e.clientX,y:e.clientY}:null});
+$('info').addEventListener('pointerup',e=>{const pr=press;press=null;if(!pr)return;const el=document.elementFromPoint(e.clientX,e.clientY),b=el&&el.closest('#info [data-act]');
+  if(b&&actKey(b)===pr.key&&Math.hypot(e.clientX-pr.x,e.clientY-pr.y)<12)sideAct(b)});
+$('info').addEventListener('click',e=>{if(e.detail===0)sideAct(e.target.closest('[data-act]'))}); // keyboard activation
+function renderNews(){$('news').innerHTML=G.news.slice(0,8).map(n=>`<div><b>${n.d}</b><span style="color:${n.c}">${n.txt}</span></div>`).join('')}
+
+/* ---------- HUD ---------- */
+function setSpeed(s){G.speed=s;document.querySelectorAll('#speed button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.s===s)));$('pauseTag').hidden=!(s===0&&G.mode==='play'&&!G.modalOpen)}
+document.querySelectorAll('#speed button').forEach(b=>b.onclick=()=>{if(G.mode==='play'&&!G.modalOpen){setSpeed(+b.dataset.s);if(+b.dataset.s)G.lastSpeed=+b.dataset.s}});
+function setRatio(r){G.ratio=r;document.querySelectorAll('#ratio button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.r===r)))}
+document.querySelectorAll('#ratio button').forEach(b=>b.onclick=()=>setRatio(+b.dataset.r));
+$('bMute').onclick=()=>{muted=!muted;$('bMute').textContent=muted?'♪×':'♪'};
+$('bHome').onclick=()=>{if(G.mode==='play')focusHome()};
+const canModal=()=>G.mode==='play'&&!G.modalOpen;
+$('bTech').onclick=()=>{if(canModal())openModal('tech')};
+$('bMenu').onclick=()=>{if(canModal())openModal('menu')};
+addEventListener('keydown',e=>{
+  if(G.mode!=='play'||G.modalOpen)return;
+  if(e.key===' '){e.preventDefault();setSpeed(G.speed?0:(G.lastSpeed||1))}
+  else if(e.key>='1'&&e.key<='3'){setSpeed(+e.key);G.lastSpeed=+e.key}
+  else if(e.key==='Escape'){G.sel.clear();G.focus=null;renderSide(true)}
+  else if(e.key.toLowerCase()==='h')focusHome();
+});
+let lastHud='';
+function setDot(id,n){const b=$(id);let d=b.querySelector('.dot');if(n){if(!d){d=document.createElement('span');d.className='dot';b.appendChild(d)}d.textContent=n}else if(d)d.remove()}
+function updHud(){
+  const pl=G.planets.filter(p=>p.owner==='p'),inc=pl.reduce((a,p)=>a+incOf(p),0)+(G.convR||0),M=Mof('p');
+  const ships=Math.round(pl.reduce((a,p)=>a+p.ships,0)+G.fleets.reduce((a,f)=>a+(f.owner==='p'?f.n:0),0));
+  const v=G.mode==='title'?['-','-','-','-',best?'BEST '+best.toLocaleString():'0']:[`${G.g}-${Math.floor(G.t)}`,`${Math.floor(G.fac.p?.cr||0)}<em style="color:${inc-M.up<0?'#ff5c8a':'var(--heal)'}">${inc-M.up<0?'':'+'}${(inc-M.up).toFixed(1)}/s</em>`,`${M.n}/${M.cap}`,`${ships}<em style="color:${ships>M.fcap?'#ffb347':'var(--mute)'}">/${M.fcap}</em>`,G.score.toLocaleString()];
+  const s=v.join('|')+G.coal;if(s!==lastHud){lastHud=s;['hDay','hCr','hPl','hShips','hScore'].forEach((id,i)=>$(id).innerHTML=v[i]);$('hPl').classList.toggle('over',G.mode!=='title'&&M.n>M.cap)}
+  const play=G.mode==='play';
+  setDot('bTech',play&&TECH.some(t=>t.cost[T(t.id)]!==undefined&&G.fac.p.cr>=techCost(t))?'!':0);
+  $('coalTag').hidden=!(G.coal&&play);
+}
+
+/* ---------- modals ---------- */
+function showOverlay(html){ov.innerHTML=html;ov.hidden=false;ov.scrollTop=0}
+function hideOverlay(){ov.hidden=true;ov.innerHTML=''}
+function openModal(type,data){
+  if(!G.modalOpen){G.modalOpen=true;G.resume=G.speed;G.speed=0;$('pauseTag').hidden=true}
+  const close=()=>{G.modalOpen=false;hideOverlay();setSpeed(G.mode==='play'?G.resume:0);renderSide(true);updHud()};
+  if(type==='tech'){
+    showOverlay(`<div class="panel"><p class="kicker">TECHNOLOGY</p><h2>技術開発 <span style="color:var(--gold)">資金 ${Math.floor(G.fac.p.cr)}</span></h2>
+      <p class="muted">この戦役の間ずっと有効で、次の銀河にも引き継ぎます。上のボタンに「!」が付いたら開発できる技術があります。${Mof('p').tcost<1?`古代遺跡の効果で費用 -${Math.round((1-Mof('p').tcost)*100)}%。`:''}</p>
+      <p class="sec">基礎技術（数値を伸ばす）</p><div class="grid2">${TECH.filter(t=>!t.brk).map(t=>{const lv=T(t.id),c=t.cost[lv]!==undefined?techCost(t):undefined;return `<div class="item"><strong>${t.name}</strong><span>${t.desc}（Lv ${lv}/${t.cost.length}）</span>
+        <div class="pips t">${t.cost.map((_,i)=>`<i class="${i<lv?'on':''}"></i>`).join('')}</div>
+        ${c!==undefined?`<button class="buy t" data-t="${t.id}" ${G.fac.p.cr<c?'disabled':''}>${c} 資金で開発</button>`:'<span style="color:var(--gold)">完成</span>'}</div>`}).join('')}</div>
+      <p class="sec">突破技術（戦い方そのものを変える・1回きり）</p><p class="muted" style="font-size:13px">高価なので全部は取れない。どれを取るかで、その戦役の戦い方が決まります。</p><div class="grid2">${TECH.filter(t=>t.brk).map(t=>{const done=T(t.id)>0,c=done?0:techCost(t);return `<div class="item" style="${done?'border-color:var(--gold)':''}"><strong>${t.name}</strong><span>${t.desc}</span>
+        ${done?'<span style="color:var(--gold)">取得済み</span>':`<button class="buy t" data-t="${t.id}" ${G.fac.p.cr<c?'disabled':''}>${c} 資金で開発</button>`}</div>`}).join('')}</div>
+      <button class="cta" id="mB">閉じる</button></div>`);
+    ov.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{const t=TECH.find(t=>t.id===b.dataset.t);if(t.cost[T(t.id)]===undefined)return;const c=techCost(t);if(G.fac.p.cr<c)return;G.fac.p.cr-=c;G.tech[t.id]=T(t.id)+1;G.stats.tb=1;refreshM();news(`技術「${t.name}」Lv${G.tech[t.id]}を開発`,'#ffe08a');tone(880,.12,'triangle',.03,400);openModal('tech')});
+    $('mB').onclick=close;
+  }else if(type==='event'){const ev=data;
+    showOverlay(`<div class="panel"><p class="kicker">GALACTIC EVENT · 宇宙暦 ${Math.floor(G.t)}</p><h2>${ev.title}</h2><p>${ev.text}</p>
+      <div class="off-list">${ev.ch.map((c,i)=>`<button class="toggle" id="ev${i}" ${c.ok&&!c.ok()?'disabled':''}><span>${c.l}<small>${c.s}</small></span></button>`).join('')}</div></div>`);
+    ev.ch.forEach((c,i)=>$('ev'+i).onclick=()=>{if(c.ok&&!c.ok())return;c.f();refreshM();computeSupply();updHud();close()});
+  }else if(type==='menu'){
+    showOverlay(`<div class="panel"><p class="kicker">MENU</p><h2>一時停止中</h2><p class="muted">第${G.g}銀河 ・ スコア ${G.score.toLocaleString()} ・ 宇宙暦 ${Math.floor(G.t)}</p>
+      <button class="cta" id="mB">戻る</button><button class="cta ghost" id="mA">戦役を終える（星屑は受け取れます）</button></div>`);
+    $('mB').onclick=close;$('mA').onclick=()=>{G.modalOpen=false;gameOver(true)};
+  }
+}
+function galaxyCleared(kind){
+  if(G.mode!=='play')return;achCheck(kind||'all');G.mode='cleared';G.speed=0;$('pauseTag').hidden=true;$('coalTag').hidden=true;const tb=Math.max(0,Math.round((600-G.t)*3*G.g)),gain=2000*G.g+tb;G.score+=gain;G.stats.galaxies++;saveBest();renderSide(true);updHud();
+  showOverlay(`<div class="panel"><p class="kicker">${kind==='heg'?'HEGEMONY':'GALAXY UNIFIED'}</p><h2>第${G.g}銀河「${GAL[(G.g-1)%GAL.length]}」${kind==='heg'?'覇権確立':'統一'}</h2>${kind==='heg'?'<p class="muted">特産星を押さえ、守り切った。残る勢力はあなたの覇権を認めた。</p>':''}
+    <dl class="tally"><dt>統一ボーナス</dt><dd>+${(2000*G.g).toLocaleString()}</dd><dt>速攻ボーナス（宇宙暦 ${Math.floor(G.t)}）</dt><dd>+${tb.toLocaleString()}</dd><dt class="total">スコア</dt><dd class="total">${G.score.toLocaleString()}</dd></dl>
+    <p class="muted">次の銀河はさらに広く、敵勢力も増えて強くなります。技術と資金の半分を引き継いで進軍します。勝ち方は自由：制覇でも覇権でも。</p>
+    <button class="cta" id="mA">次の銀河へ</button></div>`);
+  $('mA').onclick=()=>{const cr=Math.floor(G.fac.p.cr/2);G.g++;G.t=0;
+    if(TR('techlock'))for(const t of TECH)if(!t.brk&&T(t.id)>0)G.tech[t.id]--;
+    startGalaxy();G.fac.p.cr=cr+150;news(`第${G.g}銀河「${GAL[(G.g-1)%GAL.length]}」へ進軍`,'#7fd6ff');
+    const lords=Object.keys(G.fac).filter(k=>G.fac[k].lord);if(lords.length)news(`覇王勢力：${lords.map(k=>FACS[k].name).join('・')}（生産 ×1.4・攻防 ×1.15・堅固な首都）。滅ぼせばスコア3倍`,'#ff5c8a');achCheck()};
+}
+function saveBest(){if(G.score>best){best=G.score;try{localStorage.setItem('orbitSiegeBest3',best)}catch(e){}return true}return false}
+function gameOver(quit,why){
+  G.mode='over';G.speed=0;$('pauseTag').hidden=true;$('coalTag').hidden=true;const raw=G.score;G.score=Math.round(G.score*hmul());const rec=saveBest();
+  const dust=Math.floor((raw/100+G.stats.destroyed*5+G.stats.capitals*3+G.stats.galaxies*20+G.g*3)*(1+.1*meta.lv.dust)*hmul());meta.dust+=dust;
+  const h=heat();meta.hb=meta.hb||{};if(G.g>(meta.hb[h]||0))meta.hb[h]=G.g;saveMeta();
+  renderSide(true);updHud();
+  showOverlay(`<div class="panel"><p class="kicker">CAMPAIGN OVER</p><h2>${quit?'戦役を終えた':why||'全ての拠点を失った'}</h2><p class="muted">教義「${DOCS[G.doc||'none'].name}」・試練 ${heat()}${heat()?`（スコア・星屑 ×${hmul().toFixed(2)}）`:''}</p>${rec?'<p style="color:var(--gold);font-family:var(--display);letter-spacing:.14em">NEW RECORD</p>':''}
+    <dl class="tally"><dt>到達</dt><dd>第${G.g}銀河 · 宇宙暦 ${Math.floor(G.t)}</dd><dt>制圧した惑星</dt><dd>${G.stats.capt}</dd><dt>攻略した首都</dt><dd>${G.stats.capitals}</dd><dt>滅ぼした勢力</dt><dd>${G.stats.destroyed}</dd>
+      <dt class="total">スコア</dt><dd class="total">${G.score.toLocaleString()}</dd><dt>ベスト</dt><dd>${best.toLocaleString()}</dd><dt class="dust">獲得した星屑</dt><dd class="dust">+✦ ${dust}</dd></dl>
+    <div class="row"><button class="cta" id="mA">新しい戦役へ</button><button class="cta alt" id="mL">研究所 ✦${meta.dust}</button></div><button class="btn" id="mT">タイトルへ</button></div>`);
+  $('mA').onclick=newCampaign;$('mL').onclick=()=>{titleScreen();labScreen()};$('mT').onclick=titleScreen;
+}
+function titleScreen(){
+  G.mode='title';G.speed=1;G.modalOpen=false;$('pauseTag').hidden=true;G.news=[];renderNews();renderSide(true);lastHud='';demo();updHud();
+  showOverlay(`<div class="panel"><p class="kicker">REAL-TIME GALACTIC CONQUEST</p><h1>ORBIT SIEGE</h1>
+    <ul class="rules">
+      <li>時間は流れ続ける。<b>Space で一時停止</b>しても命令できる</li>
+      <li><b>見えているのは自軍の隣の惑星まで</b>。敵の位置も特産星も航路も、広げるか艦隊を送るまでわからない。見えない惑星は最後に見た姿のまま</li>
+      <li>自軍惑星（水色）からドラッグして出撃、<b>なぞると一斉出撃</b>。届くのは隣の惑星まで</li>
+      <li><b>敵惑星をダブルクリックで作戦</b>：周りの惑星が自動で艦を集め、経路上を順に落として攻め進む。<b>自軍惑星をダブルクリックで防衛拠点</b></li>
+      <li>右の<b>全体方針</b>で、後方輸送・防衛拠点・自動内政を一括で決める。建設は押すだけで予約に積まれる</li>
+      <li><b>維持上限</b>：上限を超えて艦を抱えると維持費がかかる（生産と後方輸送は止まらない）。上限は惑星を増やしてもほとんど増えないので、溜め込むより、どこに集めていつ使うかの勝負</li>
+      <li><b>数で劣っても勝てる</b>：別々の惑星から同時に着弾させる<b>挟撃</b>は攻撃 ×1.35。<b>突破技術</b>（シールド・遮蔽・軌道砲・宣伝工作など）で戦い方そのものを変えられる</li>
+      <li>敵は<b>大攻勢を予告</b>してくる。守りを固めるか、集結地を先に叩くか。<b>補給線</b>を断てば戦わずに弱らせられる</li>
+      <li>勝ち筋は2つ：全勢力を倒す<b>制覇</b>か、特産星（金の輪）を押さえて守り切る<b>覇権</b></li>
+      <li>中盤には<b>虚空の侵略</b>や<b>銀河の事件</b>。統一すればさらに広い次の銀河へ。終わりなし</li>
+    </ul>
+    <div class="row"><button class="cta" id="mA">戦役を始める</button><button class="cta alt" id="mL">研究所 ✦${meta.dust}</button><button class="cta alt" id="mH">勲章 ${Object.keys(meta.ach||{}).length}/${ACH.length}</button></div>
+    ${Object.keys(meta.hb||{}).length?`<p class="muted" style="text-align:center">最高到達：${Object.entries(meta.hb).sort((a,b)=>b[0]-a[0]).slice(0,3).map(([h,g])=>`試練${h}で第${g}銀河`).join('・')}</p>`:''}
+    ${best?`<p class="kicker">BEST ${best.toLocaleString()}</p>`:''}</div>`);
+  $('mA').onclick=setupScreen;$('mL').onclick=labScreen;$('mH').onclick=achScreen;
+}
+let setup={doc:'none',tr:new Set()};
+function setupScreen(){
+  const h=[...setup.tr].reduce((a,k)=>a+TRIALS[k].h,0);
+  showOverlay(`<div class="panel"><p class="kicker">CAMPAIGN SETUP</p><h2>戦役の準備</h2>
+    <p class="sec">教義（国の性格を1つ選ぶ）</p><div class="grid2">${Object.entries(DOCS).map(([k,d])=>`<button class="item" data-doc="${k}" style="text-align:left;cursor:pointer;${setup.doc===k?'border-color:var(--gold)':''}"><strong>${setup.doc===k?'● ':''}${d.name}</strong><span>${d.desc}</span></button>`).join('')}</div>
+    <p class="sec">試練（自分に課す縛り。合計が高いほどスコアと星屑が増える）</p><div class="grid2">${Object.entries(TRIALS).map(([k,t])=>`<button class="item" data-tr="${k}" style="text-align:left;cursor:pointer;${setup.tr.has(k)?'border-color:#ff5c8a':''}"><strong>${setup.tr.has(k)?'✔ ':''}${t.name} <small style="color:#ff5c8a">試練 +${t.h}</small></strong><span>${t.desc}</span></button>`).join('')}</div>
+    <p class="muted" style="text-align:center">試練の合計 <b style="color:#ff5c8a">${h}</b> · スコア・星屑 ×${(1+.15*h).toFixed(2)}${meta.hb&&meta.hb[h]?` · この試練での最高到達 第${meta.hb[h]}銀河`:''}</p>
+    <div class="row"><button class="cta" id="mA">出撃</button><button class="cta alt" id="mB">戻る</button></div></div>`);
+  ov.querySelectorAll('[data-doc]').forEach(b=>b.onclick=()=>{setup.doc=b.dataset.doc;setupScreen()});
+  ov.querySelectorAll('[data-tr]').forEach(b=>b.onclick=()=>{const k=b.dataset.tr;setup.tr.has(k)?setup.tr.delete(k):setup.tr.add(k);setupScreen()});
+  $('mA').onclick=()=>{G.mode='starting';newCampaign();tone(440,.1,'triangle',.03,440)};$('mB').onclick=titleScreen;
+}
+function achScreen(){meta.ach=meta.ach||{};
+  showOverlay(`<div class="panel"><p class="kicker">MEDALS</p><h2>勲章 ${Object.keys(meta.ach).length}/${ACH.length}</h2><p class="muted">獲得すると星屑がもらえます。</p>
+    <div class="grid2">${ACH.map(a=>`<div class="item" style="${meta.ach[a.id]?'border-color:#c9a8ff':'opacity:.6'}"><strong>${meta.ach[a.id]?'★ ':'☆ '}${a.name}</strong><span>${a.desc}（✦${a.r}）</span></div>`).join('')}</div>
+    <button class="cta" id="mB">戻る</button></div>`);$('mB').onclick=titleScreen}
+function labScreen(){
+  showOverlay(`<div class="panel"><p class="kicker">RESEARCH LAB</p><h2>研究所 <span style="color:var(--dust)">✦ ${meta.dust}</span></h2>
+    <p class="muted">ずっと残る強化です。効果は控えめで、戦役ごとの判断と技術開発が主役です。</p>
+    <div class="grid2">${LAB.map(l=>{const lv=meta.lv[l.id],max=l.cost.length,c=l.cost[lv];return `<div class="item"><strong>${l.name}</strong><span>${l.desc}：<b style="color:var(--ink)">${l.eff(lv)}</b>${lv<max?` → ${l.eff(lv+1)}`:''}</span>
+      <div class="pips">${Array.from({length:max},(_,i)=>`<i class="${i<lv?'on':''}"></i>`).join('')}</div>
+      ${lv<max?`<button class="buy" data-l="${l.id}" ${meta.dust<c?'disabled':''}>✦ ${c} で強化</button>`:'<span style="color:var(--dust)">最大レベル</span>'}</div>`}).join('')}</div>
+    <button class="cta" id="mB">戻る</button></div>`);
+  ov.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{const l=LAB.find(l=>l.id===b.dataset.l),c=l.cost[meta.lv[l.id]];if(meta.dust<c)return;meta.dust-=c;meta.lv[l.id]++;saveMeta();labScreen()});
+  $('mB').onclick=titleScreen;
+}
+// title backdrop: an AI-only galaxy fighting itself
+function demo(){if(!W)return;G.g=2;G.t=0;G.tech={};G.fleets=[];G.ops=[];genGalaxy();G.planets.forEach(p=>{if(p.owner==='p')p.owner='raid'});G.fac.p={cr:0,tick:0,autoT:9e9,alive:false};
+  refreshM();computeSupply();G.focus=null;G.sel.clear();G.cam.z=zMin()*1.05;G.cam.x=G.WW/2;G.cam.y=G.WH/2}
+
+/* ---------- loop ---------- */
+let last=performance.now(),sideT=0;
+function frame(now){
+  artTick(now);
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  if(G.mode==='play'){
+    if(G.speed>0)update(dt*G.speed);
+    if(G.mode==='play'&&G.pendingEv&&!G.modalOpen){const ev=G.pendingEv;G.pendingEv=null;openModal('event',ev)}
+    if((sideT-=dt)<=0){sideT=.2;renderSide();updHud()}
+  }else if(G.mode==='title'&&G.planets.length)update(dt*.8);
+  if(G.toast&&(G.toast.t-=dt)<=0)G.toast=null;
+  for(let i=G.fx.length-1;i>=0;i--)if((G.fx[i].t+=dt)>1.4)G.fx.splice(i,1);
+  for(let i=G.parts.length-1;i>=0;i--){const q=G.parts[i];q.life-=dt;if(q.life<=0){G.parts.splice(i,1);continue}q.x+=q.vx*dt;q.y+=q.vy*dt;q.vx*=.94;q.vy*=.94}
+  for(const p of G.planets)if(p.flash>0)p.flash-=dt*1.5;
+  draw(now);requestAnimationFrame(frame);
+}
+resize();
+setTimeout(()=>{resize();titleScreen()},0);
+requestAnimationFrame(frame);
+})();
+</script>

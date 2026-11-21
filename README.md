@@ -2,6 +2,9 @@
 
 リアルタイムで銀河を奪い合う宇宙戦略ゲーム（HTML1ファイル・外部ライブラリなし）。
 
+- ▶ 遊ぶ（itch.io）：https://kazumal.itch.io/starmarch
+- ▶ 遊ぶ（GitHub Pages）：https://kazumal.github.io/starmarch/
+
 ## 構成
 - `src/game.html` … ゲーム本体（Claudeのアーティファクトとして公開している形そのまま）
 - `tools/build.py` … `src/game.html` を完全なHTML＋PWAに包んで `public/` に出力し、itch.io用の `dist/starmarch-web.zip` を作る
@@ -15,7 +18,7 @@ python3 tools/build.py
 ```
 
 ## 公開
-- itch.io：`dist/starmarch-web.zip` を「HTML」プロジェクトとしてアップロード（`store/itch-page.md` 参照）
+- itch.io：https://kazumal.itch.io/starmarch に `dist/starmarch-web.zip` を「HTML」プロジェクトとしてアップロード（`store/itch-page.md` 参照）
 - GitHub Pages：https://kazumal.github.io/starmarch/ （main への push で `.github/workflows/pages.yml` が自動公開）
 
 ## 保存データ

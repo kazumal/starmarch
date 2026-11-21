@@ -3,7 +3,7 @@
 
 src/game.html is the single-file game as published in the Claude artifact (no <html>/<head>).
 This wraps it into a full document with PWA metadata, writes public/index.html,
-and packs dist/orbit-siege-web.zip for itch.io (index.html at the zip root).
+and packs dist/starmarch-web.zip for itch.io (index.html at the zip root).
 """
 import pathlib, re, zipfile, hashlib
 
@@ -24,7 +24,7 @@ HEAD = """<!doctype html>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Orbit Siege">
+<meta name="apple-mobile-web-app-title" content="Starmarch">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -47,8 +47,8 @@ sw = (ROOT / "tools/sw.template.js").read_text(encoding="utf-8").replace("__VERS
 (pub / "sw.js").write_text(sw, encoding="utf-8")
 
 dist = ROOT / "dist"; dist.mkdir(exist_ok=True)
-with zipfile.ZipFile(dist / "orbit-siege-web.zip", "w", zipfile.ZIP_DEFLATED) as z:
+with zipfile.ZipFile(dist / "starmarch-web.zip", "w", zipfile.ZIP_DEFLATED) as z:
     for f in sorted(pub.rglob("*")):
         if f.is_file() and not f.name.startswith("."):
             z.write(f, f.relative_to(pub).as_posix())
-print("built", pub / "index.html", f"({len(out)//1024} KB)", "sw", ver, "->", dist / "orbit-siege-web.zip")
+print("built", pub / "index.html", f"({len(out)//1024} KB)", "sw", ver, "->", dist / "starmarch-web.zip")

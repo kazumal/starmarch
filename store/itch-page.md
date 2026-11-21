@@ -13,7 +13,7 @@
 銀河を奪い合う、リアルタイム宇宙戦略。方針を決めれば艦隊は自動で動く。
 
 ## 本文（日本語）
-**ORBIT SIEGE** は、時間が流れ続ける銀河で惑星を奪い合うリアルタイム戦略ゲームです。
+**STARMARCH** は、時間が流れ続ける銀河で惑星を奪い合うリアルタイム戦略ゲームです。
 
 細かい操作は自動に任せ、あなたは「どこを攻め、いつ使い、何を守るか」を決めます。
 
@@ -29,7 +29,7 @@
 操作：ドラッグで出撃／なぞって一斉出撃／ダブルクリックで作戦・防衛拠点／Spaceで一時停止／ホイールで拡大縮小
 
 ## Description (English)
-**ORBIT SIEGE** is a real-time galactic strategy game where time never stops.
+**STARMARCH** is a real-time galactic strategy game where time never stops.
 
 Set the policy, and your fleets do the legwork — you decide where to strike, when to commit and what to hold.
 

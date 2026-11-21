@@ -1,0 +1,15 @@
+{
+  "appId": "io.github.kazumal.starmarch",
+  "appName": "Starmarch",
+  "webDir": "public",
+  "backgroundColor": "#070b22",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#070b22",
+    "scrollEnabled": false
+  },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 600, "backgroundColor": "#070b22", "showSpinner": false },
+    "StatusBar": { "overlaysWebView": true, "style": "DARK" }
+  }
+}

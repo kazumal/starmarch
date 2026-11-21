@@ -23,3 +23,12 @@ python3 tools/build.py
 
 ## 保存データ
 ブラウザの localStorage（`orbitSiegeMeta`・`orbitSiegeBest3`）。公開先のドメインごとに別になる。
+
+## iOS アプリ（Capacitor）
+```sh
+npm install
+npm run ios:sync   # ビルドして ios/ に反映
+npm run ios:open   # Xcode で開く
+```
+- Bundle ID：`io.github.kazumal.starmarch`／横向き固定・ステータスバー非表示
+- アイコンと起動画面：`ios/App/App/Assets.xcassets`

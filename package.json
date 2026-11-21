@@ -1,0 +1,20 @@
+{
+  "name": "starmarch",
+  "private": true,
+  "version": "1.0.0",
+  "description": "リアルタイムで銀河を奪い合う宇宙戦略ゲーム",
+  "scripts": {
+    "build": "python3 tools/build.py",
+    "ios:sync": "python3 tools/build.py && npx cap sync ios",
+    "ios:open": "npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/ios": "^8.6.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.2"
+  }
+}

@@ -146,10 +146,10 @@ aside{width:310px;flex:0 0 auto;display:flex;flex-direction:column;gap:8px;min-h
   .stat small{display:none}.stat b{font-size:14px}.stat b em{font-size:10px}
   .seg button,.btn{padding:6px 9px;font-size:12px}
   .main{position:relative}
-  aside{max-height:none;position:absolute;top:0;right:0;bottom:0;width:min(340px,56vw);z-index:6;transform:translateX(calc(100% + 12px));transition:transform .18s ease;box-shadow:-10px 0 28px rgba(0,0,0,.55)}
-  body.side-open aside{transform:none}
+  aside{max-height:none;position:absolute;top:0;right:0;bottom:0;width:min(340px,56vw);z-index:6;transform:translateX(calc(100% + 16px + env(safe-area-inset-right,0px)));visibility:hidden;transition:transform .18s ease;box-shadow:-10px 0 28px rgba(0,0,0,.55)}
+  body.side-open aside{transform:none;visibility:visible}
   #bSide{display:inline-block}
-  .panel{padding:14px;gap:10px}.rules{font-size:13px;line-height:1.6}
+  .panel{padding:14px;gap:10px}.panel h1{font-size:34px}.rules{font-size:13px;line-height:1.6;max-height:38vh;overflow-y:auto;padding-right:6px}
 }
 @media (max-width:860px) and (orientation:portrait){#app{padding-top:max(10px,env(safe-area-inset-top,0px));padding-bottom:max(10px,env(safe-area-inset-bottom,0px))}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
